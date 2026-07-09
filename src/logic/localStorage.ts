@@ -25,6 +25,7 @@ export const normalizeScenario = (scenario: Partial<Scenario>): Scenario => {
     forecastAssumptions: { ...blank.forecastAssumptions, ...(scenario.forecastAssumptions ?? {}) },
     productDetails: { ...blankProductDetails, ...(scenario.productDetails ?? {}) },
     importedFiles: scenario.importedFiles ?? [],
+    auditTrail: scenario.auditTrail ?? [],
     updatedAt: scenario.updatedAt ?? new Date().toISOString(),
   };
 };

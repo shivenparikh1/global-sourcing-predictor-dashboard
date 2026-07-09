@@ -35,8 +35,9 @@ export default function RecommendationPanel({ recommendation, generatedAt, onGen
       <div className="mt-3 grid flex-1 gap-2 sm:grid-cols-2">
         <RecommendationCard title="Recommended Allocation" value={recommendation.recommendedAllocation} />
         <RecommendationCard title="Why This Plan" value={recommendation.whyThisPlan} />
+        <RecommendationCard title="Recommended Action" value={recommendation.recommendedAction} tone="cyan" />
         <RecommendationCard title="Biggest Risk" value={recommendation.biggestRisk} tone="risk" />
-        <RecommendationCard title="Best Next Action" value={recommendation.bestLever} tone="cyan" />
+        <RecommendationCard title="Best Next Action" value={recommendation.bestLever} />
         <RecommendationCard title="Key Tradeoff" value={recommendation.keyTradeoff} tone="warn" />
         <RecommendationCard title="Confidence" value={recommendation.confidence} />
         <RecommendationCard title="Missing Data" value={missing.length ? missing.join(", ") : "No critical missing fields detected."} tone={missing.length ? "warn" : "good"} />

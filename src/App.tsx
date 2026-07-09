@@ -26,7 +26,6 @@ import {
   loadActiveDashboardIndex,
   loadCurrentScenario,
   loadDashboardSlots,
-  loadSavedScenarios,
   parseScenarioImport,
   persistActiveDashboardIndex,
   persistCurrentScenario,
@@ -37,8 +36,8 @@ import {
 import { applyAllocation, buildRecommendedAllocation } from "./logic/optimizationEngine";
 import { calculatePrediction } from "./logic/predictionEngine";
 import { buildRecommendation } from "./logic/recommendationEngine";
-import { createBlankNegotiationLever, createBlankScenario, modeDefaults } from "./logic/seedData";
-import type { Coordinates, DemandHub, LogisticsHub, NegotiationLever, RegionalRiskProfile, RiskEvent, Route, Scenario, Supplier } from "./logic/types";
+import { createBlankNegotiationLever, createBlankScenario, createExampleScenario, modeDefaults } from "./logic/seedData";
+import type { AuditEntry, Coordinates, DemandHub, LogisticsHub, NegotiationLever, RegionalRiskProfile, RiskEvent, Route, Scenario, Supplier } from "./logic/types";
 import {
   applyIntakeToScenario,
   applyStrategyToScenario,
@@ -51,14 +50,56 @@ import {
 
 const nowStamp = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-const touchScenario = (scenario: Scenario): Scenario => ({ ...scenario, updatedAt: new Date().toISOString() });
-
 const cloneModeDefaults = () => ({
   Sea: { ...modeDefaults.Sea },
   Air: { ...modeDefaults.Air },
   Land: { ...modeDefaults.Land },
   Multimodal: { ...modeDefaults.Multimodal },
 });
+
+const describeScenarioChange = (previous: Scenario, next: Scenario) => {
+  const changes: string[] = [];
+  if (previous.suppliers.length !== next.suppliers.length) changes.push(`suppliers ${previous.suppliers.length} -> ${next.suppliers.length}`);
+  if (previous.demandHubs.length !== next.demandHubs.length) changes.push(`demand hubs ${previous.demandHubs.length} -> ${next.demandHubs.length}`);
+  if (previous.routes.length !== next.routes.length) changes.push(`routes ${previous.routes.length} -> ${next.routes.length}`);
+  if (previous.riskEvents.length !== next.riskEvents.length) changes.push(`risks ${previous.riskEvents.length} -> ${next.riskEvents.length}`);
+  if (previous.optimizationGoal !== next.optimizationGoal) changes.push(`goal ${previous.optimizationGoal} -> ${next.optimizationGoal}`);
+  if (JSON.stringify(previous.weights) !== JSON.stringify(next.weights)) changes.push("optimization weights changed");
+  if (JSON.stringify(previous.budget) !== JSON.stringify(next.budget)) changes.push("budget or capacity constraints changed");
+  if (JSON.stringify(previous.forecastAssumptions) !== JSON.stringify(next.forecastAssumptions)) changes.push("forecast assumptions changed");
+  if (JSON.stringify(previous.productDetails) !== JSON.stringify(next.productDetails)) changes.push("product details changed");
+  if (!changes.length && JSON.stringify(previous.suppliers) !== JSON.stringify(next.suppliers)) changes.push("supplier data changed");
+  if (!changes.length && JSON.stringify(previous.routes) !== JSON.stringify(next.routes)) changes.push("route data changed");
+  if (!changes.length && JSON.stringify(previous.riskEvents) !== JSON.stringify(next.riskEvents)) changes.push("risk data changed");
+  return changes.slice(0, 3).join("; ") || "workspace data updated";
+};
+
+const describeRecommendationImpact = (previous: Scenario, next: Scenario) => {
+  const before = buildRecommendation(previous);
+  const after = buildRecommendation(next);
+  const changes: string[] = [];
+  if (before.finalDecision !== after.finalDecision) changes.push(`decision ${before.finalDecision} -> ${after.finalDecision}`);
+  if (before.biggestRisk !== after.biggestRisk) changes.push(`risk focus ${before.biggestRisk} -> ${after.biggestRisk}`);
+  if (before.recommendedAction !== after.recommendedAction) changes.push(`action changed to "${after.recommendedAction}"`);
+  if (before.recommendedAllocation !== after.recommendedAllocation) changes.push("recommended allocation changed");
+  return changes.join("; ") || "recommendation unchanged";
+};
+
+const appendAuditEntry = (previous: Scenario, next: Scenario, reason: string): Scenario => {
+  const at = new Date().toISOString();
+  const entry: AuditEntry = {
+    id: `audit-${Date.now()}`,
+    at,
+    change: describeScenarioChange(previous, next),
+    reason,
+    recommendationImpact: describeRecommendationImpact(previous, next),
+  };
+  return {
+    ...next,
+    auditTrail: [entry, ...(next.auditTrail ?? previous.auditTrail ?? [])].slice(0, 40),
+    updatedAt: at,
+  };
+};
 
 type PlacementCoordinates = Coordinates & { country?: string; region?: string };
 
@@ -200,7 +241,6 @@ export default function App() {
   const [dashboardSlots, setDashboardSlots] = useState<Scenario[]>(initialDashboardState.slots);
   const [activeDashboardIndex, setActiveDashboardIndex] = useState(initialDashboardState.activeIndex);
   const [scenario, setScenario] = useState<Scenario>(initialDashboardState.scenario);
-  const [savedScenarios, setSavedScenarios] = useState<Scenario[]>(() => loadSavedScenarios());
   const [activeTab, setActiveTab] = useState<AppTab>("command");
   const [sourcingStrategy, setSourcingStrategy] = useState<SourcingStrategy>("balanced");
   const [intake, setIntake] = useState<IntakeState>(() => createBlankIntake());
@@ -236,13 +276,13 @@ export default function App() {
   const recommendation = useMemo(() => buildRecommendation(scenario), [scenario]);
   const comparisonRows = useMemo(() => buildStrategyComparisonRows(scenario, sourcingStrategy), [scenario, sourcingStrategy]);
 
-  const replaceScenario = (next: Scenario) => {
-    const touched = touchScenario(next);
+  const replaceScenario = (next: Scenario, reason = "Workspace data updated") => {
+    const touched = appendAuditEntry(scenario, next, reason);
     setScenario(touched);
     setDashboardSlots((slots) => slots.map((slot, index) => (index === activeDashboardIndex ? touched : slot)));
   };
 
-  const updateScenario = (next: Scenario) => replaceScenario(next);
+  const updateScenario = (next: Scenario, reason?: string) => replaceScenario(next, reason);
 
   const switchDashboard = (index: number) => {
     setActiveDashboardIndex(index);
@@ -255,6 +295,20 @@ export default function App() {
     setGeneratedAt(nowStamp());
   };
 
+  const resetExampleDashboard = () => {
+    const example = createExampleScenario();
+    const exampleIndex = dashboardSlots.length - 1;
+    setDashboardSlots((slots) => slots.map((slot, index) => (index === exampleIndex ? example : slot)));
+    if (activeDashboardIndex === exampleIndex) {
+      setScenario(example);
+      setSelectedMapItem(null);
+      setMapMode("select");
+      setSourcingStrategy("balanced");
+      setIntake(createBlankIntake());
+      setGeneratedAt(nowStamp());
+    }
+  };
+
   const routeDisabledReason =
     !scenario.suppliers.length || !scenario.demandHubs.length ? "Add at least one supplier and one demand hub before creating a route." : "";
 
@@ -265,70 +319,85 @@ export default function App() {
       routes: scenario.routes.map((route) =>
         route.supplierId === updated.id ? { ...route, mode: updated.transportMode, from: updated.coordinates, originLabel: updated.country || updated.name } : route,
       ),
-    });
+    }, "Supplier record updated");
   };
 
   const saveSupplier = (supplier: Supplier) => {
     const exists = scenario.suppliers.some((item) => item.id === supplier.id);
-    updateScenario({
-      ...scenario,
-      suppliers: exists ? scenario.suppliers.map((item) => (item.id === supplier.id ? supplier : item)) : [...scenario.suppliers, supplier],
-      routes: scenario.routes.map((route) =>
-        route.supplierId === supplier.id ? { ...route, mode: supplier.transportMode, from: supplier.coordinates, originLabel: supplier.country || supplier.name } : route,
-      ),
-    });
+    updateScenario(
+      {
+        ...scenario,
+        suppliers: exists ? scenario.suppliers.map((item) => (item.id === supplier.id ? supplier : item)) : [...scenario.suppliers, supplier],
+        routes: scenario.routes.map((route) =>
+          route.supplierId === supplier.id ? { ...route, mode: supplier.transportMode, from: supplier.coordinates, originLabel: supplier.country || supplier.name } : route,
+        ),
+      },
+      exists ? "Supplier record updated" : "Supplier added",
+    );
     setSelectedMapItem({ type: "supplier", id: supplier.id });
     setEditingSupplier(null);
     setIsNewSupplier(false);
   };
 
   const deleteSupplier = (supplierId: string) => {
-    updateScenario({
-      ...scenario,
-      suppliers: scenario.suppliers.filter((supplier) => supplier.id !== supplierId),
-      routes: scenario.routes.filter((route) => route.supplierId !== supplierId),
-      riskEvents: scenario.riskEvents.map((risk) => ({ ...risk, affectedSupplierIds: risk.affectedSupplierIds.filter((id) => id !== supplierId) })),
-    });
+    updateScenario(
+      {
+        ...scenario,
+        suppliers: scenario.suppliers.filter((supplier) => supplier.id !== supplierId),
+        routes: scenario.routes.filter((route) => route.supplierId !== supplierId),
+        riskEvents: scenario.riskEvents.map((risk) => ({ ...risk, affectedSupplierIds: risk.affectedSupplierIds.filter((id) => id !== supplierId) })),
+      },
+      "Supplier removed",
+    );
     if (selectedMapItem?.type === "supplier" && selectedMapItem.id === supplierId) setSelectedMapItem(null);
     setEditingSupplier(null);
   };
 
   const saveRisk = (risk: RiskEvent) => {
     const exists = scenario.riskEvents.some((item) => item.id === risk.id);
-    updateScenario({
-      ...scenario,
-      riskEvents: exists ? scenario.riskEvents.map((item) => (item.id === risk.id ? risk : item)) : [...scenario.riskEvents, risk],
-    });
+    updateScenario(
+      {
+        ...scenario,
+        riskEvents: exists ? scenario.riskEvents.map((item) => (item.id === risk.id ? risk : item)) : [...scenario.riskEvents, risk],
+      },
+      exists ? "Risk event updated" : "Risk event added",
+    );
     setSelectedMapItem({ type: "risk", id: risk.id });
     setEditingRisk(null);
     setIsNewRisk(false);
   };
 
   const deleteRisk = (riskId: string) => {
-    updateScenario({ ...scenario, riskEvents: scenario.riskEvents.filter((risk) => risk.id !== riskId) });
+    updateScenario({ ...scenario, riskEvents: scenario.riskEvents.filter((risk) => risk.id !== riskId) }, "Risk event deleted");
     if (selectedMapItem?.type === "risk" && selectedMapItem.id === riskId) setSelectedMapItem(null);
     setEditingRisk(null);
   };
 
   const saveDemandHub = (hub: DemandHub) => {
     const exists = scenario.demandHubs.some((item) => item.id === hub.id);
-    updateScenario({
-      ...scenario,
-      demandHubs: exists ? scenario.demandHubs.map((item) => (item.id === hub.id ? hub : item)) : [...scenario.demandHubs, hub],
-      routes: scenario.routes.map((route) => (route.demandHubId === hub.id ? { ...route, destinationLabel: hub.name || hub.country, to: hub.coordinates } : route)),
-    });
+    updateScenario(
+      {
+        ...scenario,
+        demandHubs: exists ? scenario.demandHubs.map((item) => (item.id === hub.id ? hub : item)) : [...scenario.demandHubs, hub],
+        routes: scenario.routes.map((route) => (route.demandHubId === hub.id ? { ...route, destinationLabel: hub.name || hub.country, to: hub.coordinates } : route)),
+      },
+      exists ? "Demand hub updated" : "Demand hub added",
+    );
     setSelectedMapItem({ type: "demandHub", id: hub.id });
     setEditingDemandHub(null);
     setIsNewDemandHub(false);
   };
 
   const deleteDemandHub = (hubId: string) => {
-    updateScenario({
-      ...scenario,
-      demandHubs: scenario.demandHubs.filter((hub) => hub.id !== hubId),
-      routes: scenario.routes.filter((route) => route.demandHubId !== hubId),
-      riskEvents: scenario.riskEvents.map((risk) => ({ ...risk, affectedDemandHubIds: risk.affectedDemandHubIds.filter((id) => id !== hubId) })),
-    });
+    updateScenario(
+      {
+        ...scenario,
+        demandHubs: scenario.demandHubs.filter((hub) => hub.id !== hubId),
+        routes: scenario.routes.filter((route) => route.demandHubId !== hubId),
+        riskEvents: scenario.riskEvents.map((risk) => ({ ...risk, affectedDemandHubIds: risk.affectedDemandHubIds.filter((id) => id !== hubId) })),
+      },
+      "Demand hub removed",
+    );
     if (selectedMapItem?.type === "demandHub" && selectedMapItem.id === hubId) setSelectedMapItem(null);
     setEditingDemandHub(null);
   };
@@ -346,84 +415,79 @@ export default function App() {
       to: demandHub?.coordinates || route.to,
       via: logisticsHub?.coordinates || route.via,
     };
-    updateScenario({ ...scenario, routes: exists ? scenario.routes.map((item) => (item.id === route.id ? normalized : item)) : [...scenario.routes, normalized] });
+    updateScenario({ ...scenario, routes: exists ? scenario.routes.map((item) => (item.id === route.id ? normalized : item)) : [...scenario.routes, normalized] }, exists ? "Route lane updated" : "Route lane created");
     setSelectedMapItem({ type: "route", id: route.id });
     setEditingRoute(null);
     setIsNewRoute(false);
   };
 
   const deleteRoute = (routeId: string) => {
-    updateScenario({ ...scenario, routes: scenario.routes.filter((route) => route.id !== routeId) });
+    updateScenario({ ...scenario, routes: scenario.routes.filter((route) => route.id !== routeId) }, "Route lane deleted");
     if (selectedMapItem?.type === "route" && selectedMapItem.id === routeId) setSelectedMapItem(null);
     setEditingRoute(null);
   };
 
   const saveLogisticsHub = (hub: LogisticsHub) => {
     const exists = scenario.logisticsHubs.some((item) => item.id === hub.id);
-    updateScenario({
-      ...scenario,
-      logisticsHubs: exists ? scenario.logisticsHubs.map((item) => (item.id === hub.id ? hub : item)) : [...scenario.logisticsHubs, hub],
-      routes: scenario.routes.map((route) => (route.logisticsHubId === hub.id ? { ...route, via: hub.coordinates } : route)),
-    });
+    updateScenario(
+      {
+        ...scenario,
+        logisticsHubs: exists ? scenario.logisticsHubs.map((item) => (item.id === hub.id ? hub : item)) : [...scenario.logisticsHubs, hub],
+        routes: scenario.routes.map((route) => (route.logisticsHubId === hub.id ? { ...route, via: hub.coordinates } : route)),
+      },
+      exists ? "Logistics hub updated" : "Logistics hub added",
+    );
     setSelectedMapItem({ type: "logisticsHub", id: hub.id });
     setEditingLogisticsHub(null);
     setIsNewLogisticsHub(false);
   };
 
   const deleteLogisticsHub = (hubId: string) => {
-    updateScenario({
-      ...scenario,
-      logisticsHubs: scenario.logisticsHubs.filter((hub) => hub.id !== hubId),
-      routes: scenario.routes.map((route) => (route.logisticsHubId === hubId ? { ...route, logisticsHubId: undefined, via: undefined } : route)),
-    });
+    updateScenario(
+      {
+        ...scenario,
+        logisticsHubs: scenario.logisticsHubs.filter((hub) => hub.id !== hubId),
+        routes: scenario.routes.map((route) => (route.logisticsHubId === hubId ? { ...route, logisticsHubId: undefined, via: undefined } : route)),
+      },
+      "Logistics hub removed",
+    );
     if (selectedMapItem?.type === "logisticsHub" && selectedMapItem.id === hubId) setSelectedMapItem(null);
     setEditingLogisticsHub(null);
   };
 
   const saveLever = (lever: NegotiationLever) => {
     const exists = scenario.levers.some((item) => item.id === lever.id);
-    updateScenario({ ...scenario, levers: exists ? scenario.levers.map((item) => (item.id === lever.id ? lever : item)) : [...scenario.levers, lever] });
+    updateScenario({ ...scenario, levers: exists ? scenario.levers.map((item) => (item.id === lever.id ? lever : item)) : [...scenario.levers, lever] }, exists ? "Negotiation lever updated" : "Negotiation lever added");
     setEditingLever(null);
     setIsNewLever(false);
   };
 
   const deleteLever = (leverId: string) => {
-    updateScenario({ ...scenario, levers: scenario.levers.filter((lever) => lever.id !== leverId) });
+    updateScenario({ ...scenario, levers: scenario.levers.filter((lever) => lever.id !== leverId) }, "Negotiation lever deleted");
     setEditingLever(null);
   };
 
   const saveRiskProfile = (profile: RegionalRiskProfile) => {
     const exists = scenario.regionalRiskProfiles.some((item) => item.id === profile.id);
-    updateScenario({
-      ...scenario,
-      regionalRiskProfiles: exists ? scenario.regionalRiskProfiles.map((item) => (item.id === profile.id ? profile : item)) : [...scenario.regionalRiskProfiles, profile],
-    });
+    updateScenario(
+      {
+        ...scenario,
+        regionalRiskProfiles: exists ? scenario.regionalRiskProfiles.map((item) => (item.id === profile.id ? profile : item)) : [...scenario.regionalRiskProfiles, profile],
+      },
+      exists ? "Regional risk profile updated" : "Regional risk profile added",
+    );
     setEditingRiskProfile(null);
     setIsNewRiskProfile(false);
   };
 
   const deleteRiskProfile = (profileId: string) => {
-    updateScenario({ ...scenario, regionalRiskProfiles: scenario.regionalRiskProfiles.filter((profile) => profile.id !== profileId) });
+    updateScenario({ ...scenario, regionalRiskProfiles: scenario.regionalRiskProfiles.filter((profile) => profile.id !== profileId) }, "Regional risk profile deleted");
     setEditingRiskProfile(null);
   };
 
   const saveScenario = () => {
     const saved = saveScenarioSnapshot(scenario);
-    replaceScenario(saved);
-    setSavedScenarios(loadSavedScenarios());
-  };
-
-  const selectScenario = (id: string) => {
-    if (id === scenario.id) return;
-    const match = savedScenarios.find((item) => item.id === id);
-    if (match) {
-      replaceScenario(match);
-      setSelectedMapItem(null);
-      setMapMode("select");
-      setSourcingStrategy("balanced");
-      setIntake(createBlankIntake());
-      setGeneratedAt(nowStamp());
-    }
+    replaceScenario(saved, "Scenario saved");
   };
 
   const exportScenario = () => {
@@ -440,7 +504,7 @@ export default function App() {
   const importScenario = async (file: File) => {
     try {
       const imported = parseScenarioImport(await file.text());
-      replaceScenario(imported);
+      replaceScenario(imported, "Scenario JSON imported");
       setSelectedMapItem(null);
       setMapMode("select");
       setSourcingStrategy("balanced");
@@ -453,20 +517,20 @@ export default function App() {
 
   const applyRecommendation = () => {
     const allocation = buildRecommendedAllocation(scenario, scenario.optimizationGoal);
-    updateScenario(applyAllocation(scenario, allocation));
+    updateScenario(applyAllocation(scenario, allocation), "Recommended allocation applied");
     setGeneratedAt(nowStamp());
   };
 
   const changeStrategy = (nextStrategy: SourcingStrategy) => {
     setSourcingStrategy(nextStrategy);
-    updateScenario(applyStrategyToScenario(scenario, nextStrategy));
+    updateScenario(applyStrategyToScenario(scenario, nextStrategy), "Sourcing strategy changed");
     setGeneratedAt(nowStamp());
   };
 
   const applyIntake = (nextIntake: IntakeState) => {
     setIntake(nextIntake);
     setSourcingStrategy(priorityToStrategy(nextIntake.priority));
-    updateScenario(applyIntakeToScenario(scenario, nextIntake));
+    updateScenario(applyIntakeToScenario(scenario, nextIntake), "Workflow intake applied");
     setGeneratedAt(nowStamp());
   };
 
@@ -502,28 +566,26 @@ export default function App() {
   return (
     <div className="min-h-screen p-3 text-slate-100 sm:p-4">
       <div className="mx-auto flex max-w-[1900px] flex-col gap-3">
-        <div className="sticky top-0 z-40 grid gap-3 bg-ink-950/[0.82] pb-2 backdrop-blur-xl">
-          <Header
-            scenario={scenario}
-            savedScenarios={savedScenarios}
-            dashboardSlots={dashboardSlots}
-            activeDashboardIndex={activeDashboardIndex}
-            onSelectDashboard={switchDashboard}
-            onSelectScenario={selectScenario}
-            onUpdateScenario={updateScenario}
-            onSaveScenario={saveScenario}
-            onResetScenario={() => {
-              const blank = resetScenario();
-              replaceScenario(blank);
-              setSelectedMapItem(null);
-              setMapMode("select");
-              setSourcingStrategy("balanced");
-              setIntake(createBlankIntake());
-              setSavedScenarios(loadSavedScenarios());
-            }}
-            onImportScenario={importScenario}
-            onExportScenario={exportScenario}
-          />
+        <Header
+          scenario={scenario}
+          dashboardSlots={dashboardSlots}
+          activeDashboardIndex={activeDashboardIndex}
+          onSelectDashboard={switchDashboard}
+          onUpdateScenario={updateScenario}
+          onSaveScenario={saveScenario}
+          onResetScenario={() => {
+            const blank = resetScenario();
+            replaceScenario(blank, "Workspace cleared");
+            setSelectedMapItem(null);
+            setMapMode("select");
+            setSourcingStrategy("balanced");
+            setIntake(createBlankIntake());
+          }}
+          onResetExampleDashboard={resetExampleDashboard}
+          onImportScenario={importScenario}
+          onExportScenario={exportScenario}
+        />
+        <div className="sticky top-0 z-40 bg-ink-950/[0.82] py-2 backdrop-blur-xl">
           <TabNavigation activeTab={activeTab} scenario={scenario} prediction={prediction} onChange={setActiveTab} />
         </div>
 
@@ -674,8 +736,8 @@ export default function App() {
               prediction={prediction}
               comparisonRows={comparisonRows}
               onEditForecast={() => setEditingForecast(true)}
-              onChangeGoal={(optimizationGoal) => updateScenario({ ...scenario, optimizationGoal })}
-              onChangeWeights={(weights) => updateScenario({ ...scenario, weights })}
+              onChangeGoal={(optimizationGoal) => updateScenario({ ...scenario, optimizationGoal }, "Optimization goal changed")}
+              onChangeWeights={(weights) => updateScenario({ ...scenario, weights }, "Scoring weights changed")}
             />
           )}
 
@@ -772,7 +834,7 @@ export default function App() {
         value={editingForecast ? scenario.forecastAssumptions : null}
         onClose={() => setEditingForecast(false)}
         onSave={(forecastAssumptions) => {
-          updateScenario({ ...scenario, forecastAssumptions });
+          updateScenario({ ...scenario, forecastAssumptions }, "Forecast assumptions updated");
           setEditingForecast(false);
         }}
       />

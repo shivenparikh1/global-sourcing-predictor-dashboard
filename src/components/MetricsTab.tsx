@@ -1,10 +1,13 @@
-import { Activity, BarChart3, Boxes, CircleDollarSign, Gauge, Leaf, Route, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { Activity, BarChart3, Boxes, CircleDollarSign, ClipboardList, Gauge, Leaf, Route, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { buildSupplierScorecards, sourceNoteForScenario } from "../logic/scoringModel";
 import type { PredictionResult, Scenario } from "../logic/types";
 import EmptyState from "./EmptyState";
-import { currency, pct } from "./format";
+import { compactDateTime, currency, pct } from "./format";
 
 export default function MetricsTab({ scenario, prediction }: { scenario: Scenario; prediction: PredictionResult }) {
   const hasData = prediction.activeSupplierCount > 0 && prediction.totalDemand > 0 && prediction.activeRouteCount > 0 && prediction.confidenceScore >= 60;
+  const scorecards = buildSupplierScorecards(scenario, prediction);
+  const sourceNote = sourceNoteForScenario(scenario);
   const cards = [
     { label: "Total Landed Cost", value: hasData ? currency(prediction.totalScenarioCost) : "Pending input", icon: CircleDollarSign, status: hasData ? "Calculated" : "No Data" },
     { label: "Average Unit Cost", value: hasData ? currency(prediction.avgLandedCost) : "Incomplete", icon: TrendingDown, status: "Per Unit" },
@@ -57,6 +60,8 @@ export default function MetricsTab({ scenario, prediction }: { scenario: Scenari
         })}
       </div>
 
+      <ScoringModelPanel scorecards={scorecards} sourceNote={sourceNote} />
+
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartPanel title="Capacity Utilization by Supplier">
           <BarList rows={scenario.suppliers.map((supplier) => {
@@ -87,8 +92,74 @@ export default function MetricsTab({ scenario, prediction }: { scenario: Scenari
           </div>
         </ChartPanel>
       </div>
+
+      <AuditTrailPanel scenario={scenario} />
     </section>
   );
+}
+
+function ScoringModelPanel({ scorecards, sourceNote }: { scorecards: ReturnType<typeof buildSupplierScorecards>; sourceNote: string }) {
+  return (
+    <section className="panel-soft p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <ClipboardList size={17} className="text-cyanline" />
+            <h3 className="text-sm font-semibold text-white">Scoring Model</h3>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-cyan-100/52">Supplier score = weighted average of category scores. Lower cost, lead time, and risk score higher; higher reliability, ESG, capacity headroom, and resilience score higher.</p>
+        </div>
+        <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-2 py-1 text-xs text-amber-100">{sourceNote}</span>
+      </div>
+
+      {!scorecards.length ? (
+        <p className="mt-4 rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3 text-sm text-cyan-100/55">Add suppliers and active routes to generate supplier scorecards.</p>
+      ) : (
+        <div className="mt-4 grid gap-3 xl:grid-cols-3">
+          {scorecards.map((card) => (
+            <article key={card.supplierId} className="rounded-lg border border-cyan-200/10 bg-ink-950/48 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{card.supplierName}</p>
+                  <p className="text-xs text-cyan-100/48">{card.country || "Country not set"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-semibold text-white">{card.score}</p>
+                  <ScorePill label={card.confidence} />
+                </div>
+              </div>
+              <p className="mt-3 rounded-md border border-cyanline/20 bg-cyanline/10 px-2 py-2 text-xs leading-5 text-cyan-50/82">{card.recommendedAction}</p>
+              <div className="mt-3 grid gap-2">
+                {card.categories.map((category) => (
+                  <div key={category.label} className="grid gap-1">
+                    <div className="flex items-center justify-between gap-2 text-[0.68rem]">
+                      <span className="text-cyan-100/62">{category.label} · weight {category.weight}</span>
+                      <span className="font-semibold text-white">{category.score}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-ink-950">
+                      <div className="h-full rounded-full bg-cyanline" style={{ width: `${category.score}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <details className="mt-3 rounded-md border border-cyan-200/10 bg-white/[0.025] px-3 py-2 text-xs text-cyan-100/62">
+                <summary className="cursor-pointer font-semibold text-cyan-50">Assumptions and formula</summary>
+                <p className="mt-2 leading-5">{card.formula}</p>
+                <ul className="mt-2 grid gap-1 leading-5">
+                  {card.assumptions.map((assumption) => <li key={assumption}>{assumption}</li>)}
+                </ul>
+              </details>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ScorePill({ label }: { label: string }) {
+  const cls = label === "High" ? "border-good/25 bg-good/10 text-green-100" : label === "Medium" ? "border-amber-300/25 bg-amber-300/10 text-amber-100" : "border-risk/25 bg-risk/10 text-orange-100";
+  return <span className={`rounded border px-2 py-0.5 text-[0.65rem] font-semibold ${cls}`}>{label} Confidence</span>;
 }
 
 function ChartPanel({ title, children }: { title: string; children: React.ReactNode }) {
@@ -127,5 +198,44 @@ function CostRow({ label, value }: { label: string; value: number }) {
       <span className="text-cyan-100/55">{label}</span>
       <span className="font-semibold text-white">{value > 0 ? currency(value) : "Pending input"}</span>
     </div>
+  );
+}
+
+function AuditTrailPanel({ scenario }: { scenario: Scenario }) {
+  const entries = scenario.auditTrail.slice(0, 8);
+  return (
+    <section className="panel-soft p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Audit Trail</h3>
+          <p className="mt-1 text-xs text-cyan-100/52">Traceability for data edits, change reasons, and recommendation movement.</p>
+        </div>
+        <span className="rounded-md border border-cyanline/25 bg-cyanline/10 px-2 py-1 text-xs text-cyan-100">{entries.length} recent events</span>
+      </div>
+      {!entries.length ? (
+        <p className="mt-4 rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3 text-sm text-cyan-100/55">No audit events yet. The next saved data change will appear here.</p>
+      ) : (
+        <div className="mt-4 grid gap-2">
+          {entries.map((entry) => (
+            <article key={entry.id} className="rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{entry.change}</p>
+                <span className="text-xs text-cyan-100/42">{compactDateTime(entry.at)}</span>
+              </div>
+              <div className="mt-2 grid gap-2 text-xs leading-5 md:grid-cols-2">
+                <div className="rounded-md border border-cyan-200/10 bg-white/[0.025] px-2 py-2">
+                  <span className="font-semibold text-cyan-100/70">Why</span>
+                  <p className="mt-1 text-cyan-100/56">{entry.reason}</p>
+                </div>
+                <div className="rounded-md border border-cyan-200/10 bg-white/[0.025] px-2 py-2">
+                  <span className="font-semibold text-cyan-100/70">Recommendation Impact</span>
+                  <p className="mt-1 text-cyan-100/56">{entry.recommendationImpact}</p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

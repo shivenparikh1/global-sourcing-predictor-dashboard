@@ -4,10 +4,19 @@ import { useEffect, useState } from "react";
 import { fieldHelp } from "../logic/descriptors";
 import { countryOptions, getRegionForCountry, regionOptions } from "../logic/referenceData";
 import { transportModes } from "../logic/seedData";
+import {
+  autofillDemandHubFromText,
+  autofillForecastFromText,
+  autofillLeverFromText,
+  autofillLogisticsHubFromText,
+  autofillRegionalRiskFromText,
+  autofillRouteFromText,
+} from "../logic/textAutofill";
 import type { Coordinates, DemandHub, ForecastAssumptions, LogisticsHub, NegotiationLever, RegionalRiskProfile, Route, Scenario, TransportMode } from "../logic/types";
 import FormField from "./FormField";
 import NumberInput from "./NumberInput";
 import SearchableSelect from "./SearchableSelect";
+import SmartAutofillBox from "./SmartAutofillBox";
 
 interface BaseModalProps<T> {
   value: T | null;
@@ -44,6 +53,11 @@ export function DemandHubModal({ value, isNew, onClose, onSave, onDelete }: Base
 
   return (
     <ModalShell title={isNew ? "Add Demand Hub" : "Demand Hub"} subtitle="Customer, region, plant, warehouse, or delivery market." onClose={onClose}>
+      <SmartAutofillBox
+        title="AI Autofill Demand Hub"
+        placeholder="Example: Demand hub: Northeast Fulfillment Hub, United States. Monthly demand 12000 units, forecast 13200, service target 95%, max lead time 42 days, inventory 6800, safety stock 21 days, priority critical."
+        onApply={(text) => setDraft(autofillDemandHubFromText(draft, text))}
+      />
       <StepTabs steps={["Hub Profile", "Demand & Service", "Inventory & Coordinates"]} activeStep={step} onChange={setStep} />
       {step === 0 && (
         <div className="grid gap-3 md:grid-cols-2">
@@ -91,6 +105,11 @@ export function LogisticsHubModal({ value, isNew, onClose, onSave, onDelete }: B
 
   return (
     <ModalShell title={isNew ? "Add Logistics Hub" : "Logistics Hub"} subtitle="Port, airport, rail terminal, DC, or cross-dock assumptions." onClose={onClose}>
+      <SmartAutofillBox
+        title="AI Autofill Logistics Hub"
+        placeholder="Example: Port: Port of Rotterdam, Netherlands. Customs risk 12, congestion risk 22, handling cost $2.10, dwell time 3 days."
+        onApply={(text) => setDraft(autofillLogisticsHubFromText(draft, text))}
+      />
       <div className="grid gap-3 md:grid-cols-2">
         <FormField id="logistics-name" label="Port or Logistics Hub" helper="A logistics node used by one or more supplier lanes." placeholder="Example: Port of Los Angeles" validation="Hub name is required." value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
         <SearchableSelect label={fieldHelp.country.label} helper={fieldHelp.country.helper} value={draft.country} options={countryOptions} placeholder={fieldHelp.country.placeholder} onChange={(country) => setDraft({ ...draft, country, region: draft.region || getRegionForCountry(country) })} />
@@ -132,6 +151,11 @@ export function RouteLaneModal({ value, scenario, isNew, onClose, onSave, onDele
 
   return (
     <ModalShell title={isNew ? "Create Supplier-to-Demand Route" : "Route/Lane"} subtitle="Connect one supplier to one demand hub with lane assumptions." onClose={onClose}>
+      <SmartAutofillBox
+        title="AI Autofill Route"
+        placeholder="Example: Route from Taiwan Precision Controls to Northeast Fulfillment Hub by sea. Allocation 45%, freight cost $5.80, transit time 27 days, delay probability 22%, customs risk 18, congestion risk 42, emissions 0.08."
+        onApply={(text) => setDraft(autofillRouteFromText(draft, text, scenario))}
+      />
       <StepTabs steps={["Lane Endpoints", "Cost & Transit", "Risk & Emissions"]} activeStep={step} onChange={setStep} />
       {step === 0 && (
       <div className="grid gap-3 md:grid-cols-2">
@@ -218,6 +242,11 @@ export function NegotiationLeverModal({ value, isNew, onClose, onSave, onDelete 
 
   return (
     <ModalShell title={isNew ? "Add Negotiation Lever" : "Negotiation Lever"} subtitle="Create commercial levers and model before/after impacts." onClose={onClose}>
+      <SmartAutofillBox
+        title="AI Autofill Negotiation Lever"
+        placeholder="Example: Lever: Price concession. Effect: -3% unit cost with 1 point reliability impact. Unit cost impact -3%, resilience impact 2, management cost impact 0.5%."
+        onApply={(text) => setDraft(autofillLeverFromText(draft, text))}
+      />
       <div className="grid gap-3 md:grid-cols-2">
         <FormField id="lever-name" label="Negotiation Lever" helper="A commercial or operational action that changes cost, service, risk, or resilience." placeholder="Example: Price concession" validation="Lever name is required." value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
         <FormField id="lever-effect" label="Effect Summary" helper="Plain-English description shown on lever cards." placeholder="Example: -3% unit cost, -2% reliability" validation="Describe the trade-off clearly." value={draft.effect} onChange={(effect) => setDraft({ ...draft, effect })} />
@@ -246,6 +275,11 @@ export function RegionalRiskProfileModal({ value, isNew, onClose, onSave, onDele
 
   return (
     <ModalShell title={isNew ? "Add Country/Regional Risk Profile" : "Country/Regional Risk Profile"} subtitle="Manual country and regional risk assumptions." onClose={onClose}>
+      <SmartAutofillBox
+        title="AI Autofill Regional Risk"
+        placeholder="Example: Country Taiwan, region East Asia. Political risk 44, currency risk 22, natural disaster risk 38, regulatory risk 20, labor risk 16, infrastructure risk 12."
+        onApply={(text) => setDraft(autofillRegionalRiskFromText(draft, text))}
+      />
       <div className="grid gap-3 md:grid-cols-2">
         <SearchableSelect label={fieldHelp.country.label} helper={fieldHelp.country.helper} value={draft.country} options={countryOptions} placeholder={fieldHelp.country.placeholder} onChange={(country) => setDraft({ ...draft, country, region: draft.region || getRegionForCountry(country) })} />
         <SearchableSelect label={fieldHelp.region.label} helper={fieldHelp.region.helper} value={draft.region} options={regionOptions} placeholder={fieldHelp.region.placeholder} onChange={(region) => setDraft({ ...draft, region })} />
@@ -273,6 +307,11 @@ export function ForecastAssumptionsModal({ value, onClose, onSave }: { value: Fo
 
   return (
     <ModalShell title="Forecast Assumptions" subtitle="Manual assumptions used in the 30/60/90/180 day forecast." onClose={onClose}>
+      <SmartAutofillBox
+        title="AI Autofill Forecast"
+        placeholder="Example: Demand growth 8%, cost inflation 3%, risk trend 4 points, service drift -1 point. Q4 demand lift expected from industrial automation deployments."
+        onApply={(text) => setDraft(autofillForecastFromText(draft, text))}
+      />
       <div className="grid gap-3 md:grid-cols-2">
         <FormField id="forecast-demand-growth" type="number" label="Forecast Demand Growth" helper="Expected demand growth across the forecast horizon." placeholder="Example: 8" unit="%" validation="Use positive or negative percentage." value={draft.demandGrowthPct} onChange={(demandGrowthPct) => setDraft({ ...draft, demandGrowthPct: Number(demandGrowthPct) })} />
         <FormField id="forecast-cost-inflation" type="number" label="Cost Inflation" helper="Expected cost inflation applied to projected scenario cost." placeholder="Example: 3" unit="%" validation="Use positive or negative percentage." value={draft.costInflationPct} onChange={(costInflationPct) => setDraft({ ...draft, costInflationPct: Number(costInflationPct) })} />

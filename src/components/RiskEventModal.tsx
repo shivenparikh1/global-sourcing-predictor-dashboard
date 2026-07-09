@@ -1,8 +1,10 @@
 import { Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { transportModes } from "../logic/seedData";
+import { autofillRiskFromText } from "../logic/textAutofill";
 import type { Coordinates, DemandHub, RiskEvent, Supplier, TransportMode } from "../logic/types";
 import NumberInput from "./NumberInput";
+import SmartAutofillBox from "./SmartAutofillBox";
 
 interface RiskEventModalProps {
   risk: RiskEvent | null;
@@ -85,6 +87,11 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
         </div>
 
         <div className="p-4">
+        <SmartAutofillBox
+          title="AI Autofill Risk Event"
+          placeholder="Example: Risk: Pacific Port Congestion. High probability, duration 60 days, affects Taiwan and Sea lanes, cost impact 4%, freight impact 8%, lead-time impact 7 days, reliability impact 3%, risk score impact 8, severity 78, confidence 76%."
+          onApply={(text) => setDraft(autofillRiskFromText(draft, text, suppliers, demandHubs))}
+        />
         {step === 0 && (
           <section className="panel-soft p-4">
             <h3 className="mb-3 text-sm font-semibold text-white">Event Definition</h3>

@@ -9,6 +9,7 @@ export type OptimizationGoal =
   | "Highest resilience";
 
 export type Probability = "Low" | "Medium" | "High";
+export type ConfidenceBand = "High" | "Medium" | "Low";
 
 export interface Coordinates {
   x: number;
@@ -239,6 +240,14 @@ export interface ImportedFileSummary {
   createdAt: string;
 }
 
+export interface AuditEntry {
+  id: string;
+  at: string;
+  change: string;
+  reason: string;
+  recommendationImpact: string;
+}
+
 export interface PredictionResult {
   suppliers: SupplierPrediction[];
   totalScenarioCost: number;
@@ -268,6 +277,7 @@ export interface Recommendation {
   text: string;
   recommendedAllocation: string;
   whyThisPlan: string;
+  recommendedAction: string;
   keyTradeoff: string;
   confidence: string;
   missingData: string[];
@@ -289,6 +299,30 @@ export interface ScenarioComparisonRow {
   mainTradeoff: string;
 }
 
+export interface SupplierScorecard {
+  supplierId: string;
+  supplierName: string;
+  country: string;
+  score: number;
+  confidence: ConfidenceBand;
+  sourceNote: string;
+  recommendedAction: string;
+  assumptions: string[];
+  categories: Array<{ label: string; score: number; weight: number; direction: string }>;
+  formula: string;
+}
+
+export interface StressTestRow {
+  id: string;
+  question: string;
+  assumption: string;
+  costDeltaPct: number;
+  riskDelta: number;
+  leadTimeDelta: number;
+  serviceDelta: number;
+  recommendedAction: string;
+}
+
 export interface Scenario {
   id: string;
   name: string;
@@ -306,5 +340,6 @@ export interface Scenario {
   forecastAssumptions: ForecastAssumptions;
   productDetails: ProductDetails;
   importedFiles: ImportedFileSummary[];
+  auditTrail: AuditEntry[];
   updatedAt: string;
 }

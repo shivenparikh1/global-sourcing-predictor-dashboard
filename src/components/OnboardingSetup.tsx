@@ -28,9 +28,9 @@ export default function OnboardingSetup({ scenario, onAddDemandHub, onAddSupplie
     <section className="panel overflow-hidden p-5">
       <div>
         <div>
-          <h2 className="text-2xl font-semibold text-white">Build Your Global Sourcing Network</h2>
+          <h2 className="text-2xl font-semibold text-white">Build Your Electronics Supplier Award Network</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-100/68">
-            Add suppliers, customer demand locations, transportation lanes, risk events, and constraints to generate sourcing predictions.
+            Add electronics component suppliers, demand locations, transportation lanes, risk events, and constraints to generate award recommendations.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <button className="btn btn-primary justify-start" type="button" onClick={onAddDemandHub}>

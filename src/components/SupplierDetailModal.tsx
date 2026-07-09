@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { fieldHelp } from "../logic/descriptors";
 import { countryOptions, getRegionForCountry, productCategoryOptions, regionOptions } from "../logic/referenceData";
 import { transportModes } from "../logic/seedData";
+import { autofillSupplierFromText } from "../logic/textAutofill";
 import type { Coordinates, Supplier, TransportMode } from "../logic/types";
 import FormField from "./FormField";
 import NumberInput from "./NumberInput";
 import SearchableSelect from "./SearchableSelect";
+import SmartAutofillBox from "./SmartAutofillBox";
 
 interface SupplierDetailModalProps {
   supplier: Supplier | null;
@@ -150,6 +152,11 @@ export default function SupplierDetailModal({ supplier, isNew, onClose, onSave, 
         </div>
 
         <div className="p-4">
+          <SmartAutofillBox
+            title="AI Autofill Supplier"
+            placeholder="Example: Supplier: Monterrey Advanced Assembly, Mexico. Unit cost $58, capacity 14000 units, lead time 12 days, reliability 91%, tariff 2%, ESG 82, quality 89, transport mode land."
+            onApply={(text) => setDraft(autofillSupplierFromText(draft, text))}
+          />
           {step === 0 && (
             <section className="panel-soft p-4">
               <h3 className="mb-3 text-sm font-semibold text-white">Supplier Profile</h3>

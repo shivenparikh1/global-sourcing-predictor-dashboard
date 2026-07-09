@@ -2,9 +2,11 @@ import { FileUp, PackageSearch } from "lucide-react";
 import { useRef, useState } from "react";
 import { importOperationalFile } from "../logic/fileImport";
 import { productCategoryOptions } from "../logic/referenceData";
+import { autofillProductFromText } from "../logic/textAutofill";
 import type { Scenario } from "../logic/types";
 import NumberInput from "./NumberInput";
 import SearchableSelect from "./SearchableSelect";
+import SmartAutofillBox from "./SmartAutofillBox";
 
 interface ProductDetailsTabProps {
   scenario: Scenario;
@@ -62,6 +64,13 @@ export default function ProductDetailsTab({ scenario, onUpdateScenario }: Produc
           <div className="flex items-center gap-2">
             <PackageSearch size={17} className="text-cyanline" />
             <h3 className="text-sm font-semibold text-white">Product Profile</h3>
+          </div>
+          <div className="mt-4">
+            <SmartAutofillBox
+              title="AI Autofill Product Details"
+              placeholder="Example: Product: Smart Sensor Control Module, SKU SSCM-240, category Industrial Electronics, annual volume 240000 units. Compliance: RoHS, REACH, FCC. Quality: AQL 1.0, serialized traceability. Spec: IP67 enclosure, lithium battery backup."
+              onApply={(text) => updateProduct(autofillProductFromText(product, text))}
+            />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <TextField label="Product Name" value={product.name} onChange={(name) => updateProduct({ name })} placeholder="Example: Battery management PCB" />

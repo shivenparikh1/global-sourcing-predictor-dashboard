@@ -232,6 +232,7 @@ export const productCategoryOptions = [
   "Electrical Components",
   "Food and Beverage",
   "Furniture",
+  "Industrial Electronics",
   "Industrial Machinery",
   "Medical Devices",
   "Metals and Fabrication",

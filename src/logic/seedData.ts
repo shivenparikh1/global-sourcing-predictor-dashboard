@@ -113,6 +113,7 @@ export const createBlankScenario = (): Scenario => {
     forecastAssumptions: { ...blankForecastAssumptions },
     productDetails: { ...blankProductDetails },
     importedFiles: [],
+    auditTrail: [],
     updatedAt: new Date().toISOString(),
   };
 };
@@ -493,6 +494,15 @@ export const createExampleScenario = (): Scenario => {
       serviceDriftPct: -1,
       seasonalityNotes: "Q4 demand lift expected from industrial automation deployments; expedite option reserved for service recovery.",
     },
+    auditTrail: [
+      {
+        id: "audit-example-loaded",
+        at: updatedAt,
+        change: "Example workspace loaded",
+        reason: "Show a complete electronics component supplier award workflow with mock data.",
+        recommendationImpact: "Recommendations are demonstration-only until replaced with company-entered or cited source data.",
+      },
+    ],
     importedFiles: [
       {
         id: "example-file-rfq",

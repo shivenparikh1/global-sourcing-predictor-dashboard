@@ -1,4 +1,5 @@
 import { CalendarClock, GitCompare, LineChart, Settings2, TrendingUp } from "lucide-react";
+import { buildStressTests } from "../logic/stressTests";
 import type { OptimizationGoal, PredictionResult, Scenario, ScenarioComparisonRow, WeightSettings } from "../logic/types";
 import EmptyState from "./EmptyState";
 import ForecastPanel from "./ForecastPanel";
@@ -19,6 +20,7 @@ export default function ForecastScenariosTab({ scenario, prediction, comparisonR
   const completeEnough = prediction.activeSupplierCount > 0 && prediction.totalDemand > 0 && prediction.activeRouteCount > 0 && prediction.confidenceScore >= 60;
   const lastPoint = prediction.forecast[prediction.forecast.length - 1];
   const forecastDrivers = buildForecastDrivers(scenario, prediction);
+  const stressTests = buildStressTests(scenario);
 
   return (
     <section className="grid gap-4 animate-tab-in xl:grid-cols-[minmax(0,1fr)_25rem]">
@@ -82,6 +84,7 @@ export default function ForecastScenariosTab({ scenario, prediction, comparisonR
         </div>
 
         <ScenarioComparison rows={completeEnough ? comparisonRows : []} />
+        <StressTestPanel rows={completeEnough ? stressTests : []} />
       </div>
 
       <aside className="grid content-start gap-4">
@@ -97,6 +100,48 @@ export default function ForecastScenariosTab({ scenario, prediction, comparisonR
         </section>
       </aside>
     </section>
+  );
+}
+
+function StressTestPanel({ rows }: { rows: ReturnType<typeof buildStressTests> }) {
+  return (
+    <section className="panel-soft p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Scenario Stress Tests</h3>
+          <p className="mt-1 text-xs text-cyan-100/52">Fast what-if checks for tariff, lead-time, geopolitical, and demand shocks.</p>
+        </div>
+        <span className="rounded-md border border-cyanline/25 bg-cyanline/10 px-2 py-1 text-xs text-cyan-100">Local rule-based simulation</span>
+      </div>
+      {!rows.length ? (
+        <p className="mt-4 rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3 text-sm text-cyan-100/55">Complete suppliers, demand, routes, and costs to run stress tests.</p>
+      ) : (
+        <div className="mt-4 grid gap-3 xl:grid-cols-2">
+          {rows.map((row) => (
+            <article key={row.id} className="rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3">
+              <h4 className="text-sm font-semibold text-white">{row.question}</h4>
+              <p className="mt-1 text-xs leading-5 text-cyan-100/52">{row.assumption}</p>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-[0.68rem]">
+                <StressDelta label="Cost" value={`${row.costDeltaPct >= 0 ? "+" : ""}${row.costDeltaPct.toFixed(1)}%`} risk={row.costDeltaPct > 8} />
+                <StressDelta label="Risk" value={`${row.riskDelta >= 0 ? "+" : ""}${row.riskDelta.toFixed(1)}`} risk={row.riskDelta > 5} />
+                <StressDelta label="Lead" value={`${row.leadTimeDelta >= 0 ? "+" : ""}${row.leadTimeDelta.toFixed(1)}d`} risk={row.leadTimeDelta > 10} />
+                <StressDelta label="Service" value={`${row.serviceDelta >= 0 ? "+" : ""}${row.serviceDelta.toFixed(1)}%`} risk={row.serviceDelta < -4} />
+              </div>
+              <p className="mt-3 rounded-md border border-amber-300/20 bg-amber-300/10 px-2 py-2 text-xs leading-5 text-amber-50/85">{row.recommendedAction}</p>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StressDelta({ label, value, risk }: { label: string; value: string; risk: boolean }) {
+  return (
+    <div className="rounded-md border border-cyan-200/10 bg-white/[0.025] p-2">
+      <p className="text-cyan-100/42">{label}</p>
+      <p className={`mt-1 font-semibold ${risk ? "text-orange-100" : "text-green-100"}`}>{value}</p>
+    </div>
   );
 }
 

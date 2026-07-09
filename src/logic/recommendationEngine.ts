@@ -18,6 +18,7 @@ export const buildRecommendation = (scenario: Scenario): Recommendation => {
         `Predictions will appear once you add at least one demand hub, one supplier, and one active supplier-to-demand route. Add supplier cost, demand volume, route cost, lead time, and capacity to generate a sourcing recommendation. Recommendation confidence is ${result.confidenceScore < 60 ? "low" : result.confidenceScore < 90 ? "medium" : "high"} at ${result.confidenceScore}%.${missing}`,
       recommendedAllocation: "No feasible supplier allocation yet.",
       whyThisPlan: "The sourcing network is incomplete, so the model is waiting for supplier, demand, route, cost, lead-time, and capacity inputs.",
+      recommendedAction: "Add supplier, demand, route, cost, capacity, and lead-time inputs before making an award decision.",
       keyTradeoff: "Speed of setup versus recommendation confidence.",
       confidence: `${result.confidenceScore < 60 ? "Low" : result.confidenceScore < 90 ? "Medium" : "High"} (${result.confidenceScore}%)`,
       missingData: result.missingDataFields,
@@ -78,12 +79,25 @@ export const buildRecommendation = (scenario: Scenario): Recommendation => {
   )}M, ${deltaCost >= 0 ? "up" : "down"} $${Math.abs(deltaCost / 1_000_000).toFixed(2)}M versus the current plan; lead time is ${
     deltaLead >= 0 ? "up" : "down"
   } ${Math.abs(deltaLead).toFixed(1)} days.${missingNote} Trade-off: the recommendation improves resilience and diversification, but may preserve some premium cost to reduce disruption exposure. Final recommendation: ${finalDecision.toUpperCase()}.`;
+  const backupCountries = scenario.suppliers
+    .filter((supplier) => supplier.included && supplier.country && supplier.country !== biggestRiskSupplier?.country)
+    .map((supplier) => supplier.country)
+    .slice(0, 2);
+  const recommendedAction =
+    finalDecision === "reject"
+      ? "Reject due to tariff and lead-time exposure."
+      : result.weightedRisk >= 62 || /compliance|regulated|battery|hazmat|lithium|medical|aerospace/.test(productContext)
+        ? "Proceed only after compliance review."
+        : backupCountries.length
+          ? `Dual-source with ${backupCountries.join("/")} backup.`
+          : "Approve supplier with backup source.";
 
   return {
     supplierMix: allocation,
     text,
     recommendedAllocation: mix,
     whyThisPlan: `This plan follows ${scenario.optimizationGoal.toLowerCase()} using the current supplier, demand, route, risk, product, and constraint inputs.`,
+    recommendedAction,
     keyTradeoff:
       scenario.optimizationGoal === "Lowest cost"
         ? "Lower landed cost may increase lead time, concentration, or disruption exposure."
