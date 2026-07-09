@@ -41,10 +41,16 @@ interface CommandMapTabProps {
   onAddRiskAt: (coordinates: RiskEvent["coordinates"]) => void;
   onCreateRoute: () => void;
   onEditSupplier: (supplier: Supplier) => void;
+  onDeleteSupplier: (supplierId: string) => void;
   onEditDemandHub: (hub: DemandHub) => void;
+  onDeleteDemandHub: (hubId: string) => void;
   onEditLogisticsHub: (hub: LogisticsHub) => void;
+  onDeleteLogisticsHub: (hubId: string) => void;
   onEditRoute: (route: RouteType) => void;
+  onDeleteRoute: (routeId: string) => void;
   onEditRisk: (risk: RiskEvent) => void;
+  onDeactivateRisk: (risk: RiskEvent) => void;
+  onDeleteRisk: (riskId: string) => void;
   onGenerateRecommendation: () => void;
   onApplyRecommendation: () => void;
 }
@@ -67,10 +73,16 @@ export default function CommandMapTab({
   onAddRiskAt,
   onCreateRoute,
   onEditSupplier,
+  onDeleteSupplier,
   onEditDemandHub,
+  onDeleteDemandHub,
   onEditLogisticsHub,
+  onDeleteLogisticsHub,
   onEditRoute,
+  onDeleteRoute,
   onEditRisk,
+  onDeactivateRisk,
+  onDeleteRisk,
   onGenerateRecommendation,
   onApplyRecommendation,
 }: CommandMapTabProps) {
@@ -120,10 +132,16 @@ export default function CommandMapTab({
           onCreateRoute={onCreateRoute}
           routeDisabledReason={routeDisabledReason}
           onEditSupplier={onEditSupplier}
+          onDeleteSupplier={onDeleteSupplier}
           onEditDemandHub={onEditDemandHub}
+          onDeleteDemandHub={onDeleteDemandHub}
           onEditLogisticsHub={onEditLogisticsHub}
+          onDeleteLogisticsHub={onDeleteLogisticsHub}
           onEditRoute={onEditRoute}
+          onDeleteRoute={onDeleteRoute}
           onEditRisk={onEditRisk}
+          onDeactivateRisk={onDeactivateRisk}
+          onDeleteRisk={onDeleteRisk}
         />
       </div>
     </div>
@@ -191,6 +209,12 @@ function MapDetailsPanel({
   onEditLogisticsHub,
   onEditRoute,
   onEditRisk,
+  onDeleteSupplier,
+  onDeleteDemandHub,
+  onDeleteLogisticsHub,
+  onDeleteRoute,
+  onDeactivateRisk,
+  onDeleteRisk,
 }: {
   scenario: Scenario;
   prediction: PredictionResult;
@@ -202,10 +226,16 @@ function MapDetailsPanel({
   onCreateRoute: () => void;
   routeDisabledReason?: string;
   onEditSupplier: (supplier: Supplier) => void;
+  onDeleteSupplier: (supplierId: string) => void;
   onEditDemandHub: (hub: DemandHub) => void;
+  onDeleteDemandHub: (hubId: string) => void;
   onEditLogisticsHub: (hub: LogisticsHub) => void;
+  onDeleteLogisticsHub: (hubId: string) => void;
   onEditRoute: (route: RouteType) => void;
+  onDeleteRoute: (routeId: string) => void;
   onEditRisk: (risk: RiskEvent) => void;
+  onDeactivateRisk: (risk: RiskEvent) => void;
+  onDeleteRisk: (riskId: string) => void;
 }) {
   const selected = getSelectedRecord(scenario, selectedItem);
   const activeRiskCount = scenario.riskEvents.filter((risk) => risk.active).length;
@@ -250,10 +280,17 @@ function MapDetailsPanel({
               scenario={scenario}
               prediction={prediction}
               onEditSupplier={onEditSupplier}
+              onDeleteSupplier={onDeleteSupplier}
               onEditDemandHub={onEditDemandHub}
+              onDeleteDemandHub={onDeleteDemandHub}
               onEditLogisticsHub={onEditLogisticsHub}
+              onDeleteLogisticsHub={onDeleteLogisticsHub}
               onEditRoute={onEditRoute}
+              onDeleteRoute={onDeleteRoute}
               onEditRisk={onEditRisk}
+              onCreateRoute={onCreateRoute}
+              onDeactivateRisk={onDeactivateRisk}
+              onDeleteRisk={onDeleteRisk}
             />
           ) : (
             <div className="rounded-md border border-slate-500/15 bg-ink-950/40 p-3 text-xs leading-5 text-slate-400">
@@ -325,50 +362,73 @@ function SelectedDetails({
   scenario,
   prediction,
   onEditSupplier,
+  onDeleteSupplier,
   onEditDemandHub,
+  onDeleteDemandHub,
   onEditLogisticsHub,
+  onDeleteLogisticsHub,
   onEditRoute,
+  onDeleteRoute,
   onEditRisk,
+  onCreateRoute,
+  onDeactivateRisk,
+  onDeleteRisk,
 }: {
   selected: NonNullable<ReturnType<typeof getSelectedRecord>>;
   scenario: Scenario;
   prediction: PredictionResult;
   onEditSupplier: (supplier: Supplier) => void;
+  onDeleteSupplier: (supplierId: string) => void;
   onEditDemandHub: (hub: DemandHub) => void;
+  onDeleteDemandHub: (hubId: string) => void;
   onEditLogisticsHub: (hub: LogisticsHub) => void;
+  onDeleteLogisticsHub: (hubId: string) => void;
   onEditRoute: (route: RouteType) => void;
+  onDeleteRoute: (routeId: string) => void;
   onEditRisk: (risk: RiskEvent) => void;
+  onCreateRoute: () => void;
+  onDeactivateRisk: (risk: RiskEvent) => void;
+  onDeleteRisk: (riskId: string) => void;
 }) {
   if (!selected.value) return <EmptyState title="Selected item no longer exists." body="Choose another map item or add a new record." />;
   if (selected.type === "supplier") {
     const supplier = selected.value as Supplier;
     const supplierPrediction = prediction.suppliers.find((item) => item.supplierId === supplier.id);
+    const connectedRoutes = scenario.routes.filter((route) => route.supplierId === supplier.id);
     return (
-      <DetailCard title={supplier.name || "Unnamed supplier"} subtitle={`${supplier.country || "Country not set"} / ${supplier.region || "Region not set"}`} onEdit={() => onEditSupplier(supplier)}>
-        <DetailRow label="Base Cost" value={supplier.baseUnitCost > 0 ? currency(supplier.baseUnitCost) : "Missing"} />
+      <DetailCard title={supplier.name || "Unnamed supplier"} subtitle={`${supplier.country || "Country not set"} / ${supplier.region || "Region not set"}`} onEdit={() => onEditSupplier(supplier)} onDelete={() => onDeleteSupplier(supplier.id)} secondaryLabel="Create Route" onSecondary={onCreateRoute}>
+        <DetailRow label="Cost" value={supplier.baseUnitCost > 0 ? currency(supplier.baseUnitCost) : "Missing"} />
+        <DetailRow label="Lead Time" value={supplier.leadTime ? `${supplier.leadTime} days` : "Missing"} />
         <DetailRow label="Capacity" value={supplier.capacity ? `${supplier.capacity.toLocaleString()} units` : "Missing"} />
+        <DetailRow label="Reliability" value={supplier.reliability ? pct(supplier.reliability) : "Missing"} />
+        <DetailRow label="ESG" value={supplier.esgScore ? supplier.esgScore.toFixed(0) : "Missing"} />
         <DetailRow label="Risk Score" value={supplierPrediction ? supplierPrediction.riskScore.toFixed(1) : "Pending"} />
-        <DetailRow label="Allocation" value={supplierPrediction ? pct(supplierPrediction.allocationPct) : "Pending"} />
+        <DetailRow label="Connected Routes" value={connectedRoutes.length ? connectedRoutes.map((route) => route.destinationLabel || "Demand hub").join(", ") : "None"} />
       </DetailCard>
     );
   }
   if (selected.type === "demandHub") {
     const hub = selected.value as DemandHub;
+    const connectedRoutes = scenario.routes.filter((route) => route.demandHubId === hub.id);
+    const connectedSuppliers = Array.from(new Set(connectedRoutes.map((route) => scenario.suppliers.find((supplier) => supplier.id === route.supplierId)?.name || "Supplier")));
     return (
-      <DetailCard title={hub.name || "Unnamed demand hub"} subtitle={`${hub.country || "Country not set"} / ${hub.priorityLevel}`} onEdit={() => onEditDemandHub(hub)}>
+      <DetailCard title={hub.name || "Unnamed demand hub"} subtitle={`${hub.country || "Country not set"} / ${hub.priorityLevel}`} onEdit={() => onEditDemandHub(hub)} onDelete={() => onDeleteDemandHub(hub.id)}>
         <DetailRow label="Monthly Demand" value={hub.monthlyDemand ? `${hub.monthlyDemand.toLocaleString()} units` : "Missing"} />
+        <DetailRow label="Inventory" value={hub.currentInventory ? `${hub.currentInventory.toLocaleString()} units` : "Missing"} />
         <DetailRow label="Service Target" value={hub.serviceLevelTarget ? pct(hub.serviceLevelTarget) : "Missing"} />
         <DetailRow label="Max Lead Time" value={hub.maxLeadTime ? `${hub.maxLeadTime} days` : "Missing"} />
-        <DetailRow label="Routes" value={String(scenario.routes.filter((route) => route.active && route.demandHubId === hub.id).length)} />
+        <DetailRow label="Connected Suppliers" value={connectedSuppliers.length ? connectedSuppliers.join(", ") : "None"} />
+        <DetailRow label="Connected Routes" value={String(connectedRoutes.length)} />
       </DetailCard>
     );
   }
   if (selected.type === "logisticsHub") {
     const hub = selected.value as LogisticsHub;
     return (
-      <DetailCard title={hub.name || "Unnamed logistics hub"} subtitle={`${hub.type} / ${hub.country || "Country not set"}`} onEdit={() => onEditLogisticsHub(hub)}>
+      <DetailCard title={hub.name || "Unnamed logistics hub"} subtitle={`${hub.type} / ${hub.country || "Country not set"}`} onEdit={() => onEditLogisticsHub(hub)} onDelete={() => onDeleteLogisticsHub(hub.id)}>
         <DetailRow label="Customs Risk" value={hub.customsRisk ? hub.customsRisk.toFixed(0) : "Missing"} />
         <DetailRow label="Congestion" value={hub.congestionRisk ? hub.congestionRisk.toFixed(0) : "Missing"} />
+        <DetailRow label="Handling Cost" value={hub.handlingCost ? currency(hub.handlingCost) : "Missing"} />
         <DetailRow label="Dwell Time" value={hub.dwellTimeDays ? `${hub.dwellTimeDays} days` : "Missing"} />
         <DetailRow label="Linked Routes" value={String(scenario.routes.filter((route) => route.logisticsHubId === hub.id).length)} />
       </DetailCard>
@@ -376,20 +436,43 @@ function SelectedDetails({
   }
   if (selected.type === "route") {
     const route = selected.value as RouteType;
+    const supplier = scenario.suppliers.find((item) => item.id === route.supplierId);
+    const demandHub = scenario.demandHubs.find((item) => item.id === route.demandHubId);
+    const landedCost = supplier ? supplier.baseUnitCost + route.freightCost + supplier.baseUnitCost * ((supplier.tariffRate + supplier.insuranceRate) / 100) : 0;
+    const leadTime = supplier ? supplier.leadTime + route.transitTime : route.transitTime;
     return (
-      <DetailCard title={`${route.originLabel || "Origin"} -> ${route.destinationLabel || "Destination"}`} subtitle={`${route.mode} lane`} onEdit={() => onEditRoute(route)}>
-        <DetailRow label="Freight" value={route.freightCost ? currency(route.freightCost) : "Missing"} />
-        <DetailRow label="Transit" value={route.transitTime ? `${route.transitTime} days` : "Missing"} />
-        <DetailRow label="Delay Risk" value={route.delayProbability ? pct(route.delayProbability) : "Missing"} />
-        <DetailRow label="Allocation" value={route.allocationPct ? pct(route.allocationPct) : "Missing"} />
+      <DetailCard title={`${route.originLabel || "Origin"} -> ${route.destinationLabel || "Destination"}`} subtitle={`${route.mode} lane`} onEdit={() => onEditRoute(route)} onDelete={() => onDeleteRoute(route.id)}>
+        <DetailRow label="Supplier" value={supplier?.name || "Missing"} />
+        <DetailRow label="Demand Hub" value={demandHub?.name || "Missing"} />
+        <DetailRow label="Mode" value={route.mode} />
+        <DetailRow label="Freight Cost" value={route.freightCost ? currency(route.freightCost) : "Missing"} />
+        <DetailRow label="Transit Time" value={route.transitTime ? `${route.transitTime} days` : "Missing"} />
+        <DetailRow label="Delay Probability" value={route.delayProbability ? pct(route.delayProbability) : "Missing"} />
+        <DetailRow label="Customs Risk" value={route.customsRisk ? route.customsRisk.toFixed(0) : "Missing"} />
+        <DetailRow label="Landed Cost" value={landedCost ? currency(landedCost) : "Pending"} />
+        <DetailRow label="Lead Time" value={leadTime ? `${leadTime.toFixed(1)} days` : "Pending"} />
       </DetailCard>
     );
   }
   const risk = selected.value as RiskEvent;
+  const affectedRoutes = scenario.routes.filter(
+    (route) =>
+      risk.affectedSupplierIds.includes(route.supplierId) ||
+      risk.affectedDemandHubIds.includes(route.demandHubId) ||
+      risk.affectedModes.includes(route.mode) ||
+      scenario.suppliers.some((supplier) => supplier.id === route.supplierId && risk.affectedCountries.includes(supplier.country)),
+  );
+  const affectedSuppliers = scenario.suppliers.filter((supplier) => risk.affectedSupplierIds.includes(supplier.id) || risk.affectedCountries.includes(supplier.country));
   return (
-    <DetailCard title={risk.name || "Unnamed risk event"} subtitle={`${risk.probability} probability / ${risk.durationDays} days`} onEdit={() => onEditRisk(risk)}>
+    <DetailCard title={risk.name || "Unnamed risk event"} subtitle={`${risk.probability} probability / ${risk.durationDays} days`} onEdit={() => onEditRisk(risk)} onDelete={() => onDeleteRisk(risk.id)} secondaryLabel={risk.active ? "Deactivate" : undefined} onSecondary={risk.active ? () => onDeactivateRisk(risk) : undefined}>
+      <DetailRow label="Probability" value={risk.probability} />
       <DetailRow label="Severity" value={risk.severity ? risk.severity.toFixed(0) : "Missing"} />
-      <DetailRow label="Lead Impact" value={risk.leadTimeImpactDays ? `+${risk.leadTimeImpactDays} days` : "None"} />
+      <DetailRow label="Affected Lanes" value={String(affectedRoutes.length)} />
+      <DetailRow label="Affected Suppliers" value={affectedSuppliers.length ? affectedSuppliers.map((supplier) => supplier.name || supplier.country).join(", ") : "None"} />
+      <DetailRow label="Cost Impact" value={risk.costImpactPct ? `+${risk.costImpactPct}%` : "None"} />
+      <DetailRow label="Freight Impact" value={risk.freightImpactPct ? `+${risk.freightImpactPct}%` : "None"} />
+      <DetailRow label="Lead-Time Impact" value={risk.leadTimeImpactDays ? `+${risk.leadTimeImpactDays} days` : "None"} />
+      <DetailRow label="Reliability Impact" value={risk.reliabilityImpactPct ? `-${risk.reliabilityImpactPct}%` : "None"} />
       <DetailRow label="Active" value={risk.active ? "Yes" : "No"} />
       <div className="mt-2 rounded-md border border-amber-300/20 bg-amber-300/10 p-2">
         <p className="text-xs font-semibold text-amber-100">Mitigation Suggestions</p>
@@ -422,24 +505,52 @@ function ActionButton({ label, icon: Icon, tone, onClick }: { label: string; ico
   );
 }
 
-function DetailCard({ title, subtitle, onEdit, children }: { title: string; subtitle: string; onEdit: () => void; children: ReactNode }) {
+function DetailCard({
+  title,
+  subtitle,
+  onEdit,
+  onDelete,
+  secondaryLabel,
+  onSecondary,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  onEdit: () => void;
+  onDelete?: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  children: ReactNode;
+}) {
   return (
     <article className="rounded-lg border border-cyanline/20 bg-cyanline/[0.045] p-3">
       <p className="text-sm font-semibold text-white">{title}</p>
       <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
       <div className="mt-3 grid gap-2">{children}</div>
-      <button className="btn btn-primary mt-3 min-h-8 w-full px-2.5 py-1.5 text-xs" type="button" onClick={onEdit}>
-        Edit Record
-      </button>
+      <div className="mt-3 grid gap-2">
+        {secondaryLabel && onSecondary && (
+          <button className="btn min-h-8 w-full px-2.5 py-1.5 text-xs" type="button" onClick={onSecondary}>
+            {secondaryLabel}
+          </button>
+        )}
+        <button className="btn btn-primary min-h-8 w-full px-2.5 py-1.5 text-xs" type="button" onClick={onEdit}>
+          Edit Record
+        </button>
+        {onDelete && (
+          <button className="btn btn-danger min-h-8 w-full px-2.5 py-1.5 text-xs" type="button" onClick={onDelete}>
+            Delete
+          </button>
+        )}
+      </div>
     </article>
   );
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-slate-500/15 bg-ink-950/45 px-2 py-1.5 text-xs">
+    <div className="grid gap-1 rounded-md border border-slate-500/15 bg-ink-950/45 px-2 py-1.5 text-xs">
       <span className="text-slate-500">{label}</span>
-      <span className="font-semibold text-slate-100">{value}</span>
+      <span className="break-words font-semibold text-slate-100">{value}</span>
     </div>
   );
 }

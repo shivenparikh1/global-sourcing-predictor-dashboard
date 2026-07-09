@@ -52,6 +52,12 @@ const toLonLat = (coordinates: Coordinates): [number, number] => {
   return [coordinates.x * 3.6 - 180, 90 - coordinates.y * 2];
 };
 
+const routeMidpoint = (from: Coordinates, to: Coordinates): [number, number] => {
+  const [fromLng, fromLat] = toLonLat(from);
+  const [toLng, toLat] = toLonLat(to);
+  return [(fromLng + toLng) / 2, (fromLat + toLat) / 2];
+};
+
 const fromPointer = (event: MouseEvent<HTMLDivElement>): Coordinates => {
   const bounds = event.currentTarget.getBoundingClientRect();
   const x = Math.max(3, Math.min(97, ((event.clientX - bounds.left) / bounds.width) * 100));
@@ -200,8 +206,22 @@ export default function WorldMap({
                   const hub = scenario.demandHubs.find((item) => item.id === route.demandHubId);
                   if (!supplier || !hub) return null;
                   const selected = selectedItem?.type === "route" && selectedItem.id === route.id;
+                  const selectRoute = (event: MouseEvent<SVGGElement>) => {
+                    event.stopPropagation();
+                    onSelectItem({ type: "route", id: route.id });
+                  };
                   return (
-                    <g key={route.id} data-testid={`map-route-${route.id}`} className="cursor-pointer" onClick={(event) => { event.stopPropagation(); onSelectItem({ type: "route", id: route.id }); }}>
+                    <g key={route.id} className="map-route-group cursor-pointer" onClick={selectRoute}>
+                      <Line
+                        from={toLonLat(supplier.coordinates)}
+                        to={toLonLat(hub.coordinates)}
+                        stroke={routeStroke[route.mode]}
+                        strokeOpacity={0.01}
+                        strokeWidth={12}
+                        strokeLinecap="round"
+                        className="route-hover-line"
+                        style={{ pointerEvents: "stroke" }}
+                      />
                       <Line
                         from={toLonLat(supplier.coordinates)}
                         to={toLonLat(hub.coordinates)}
@@ -221,6 +241,23 @@ export default function WorldMap({
                         className="animate-dash-flow"
                         style={{ filter: selected ? "drop-shadow(0 0 8px rgba(35,211,238,.55))" : undefined }}
                       />
+                      <Marker coordinates={routeMidpoint(supplier.coordinates, hub.coordinates)}>
+                        <g className="map-marker route-midpoint-handle" onClick={selectRoute}>
+                          {selected && <circle r={10} fill="none" stroke="#e7faff" strokeOpacity="0.5" strokeWidth="1.2" />}
+                          <circle
+                            data-testid={`map-route-${route.id}`}
+                            r={selected ? 6.4 : 5.4}
+                            fill={routeStroke[route.mode]}
+                            fillOpacity={selected ? 0.5 : 0.28}
+                            stroke="#e7faff"
+                            strokeOpacity={selected ? 0.76 : 0.42}
+                            strokeWidth="1"
+                            onClick={selectRoute}
+                          />
+                          <text className="map-tooltip" y="-13" textAnchor="middle">{`${route.originLabel || "Origin"} to ${route.destinationLabel || "Destination"}`}</text>
+                          <title>{`${route.originLabel || "Origin"} to ${route.destinationLabel || "Destination"}`}</title>
+                        </g>
+                      </Marker>
                     </g>
                   );
                 })}
@@ -342,9 +379,11 @@ function SupplierMarker({ supplier, riskScore, selected, onSelect }: { supplier:
   const color = riskScore >= 64 ? "#ff6b3a" : riskScore >= 42 ? "#f4b94f" : "#17e6c3";
   return (
     <Marker coordinates={toLonLat(supplier.coordinates)}>
-      <g data-testid={`map-supplier-${supplier.id}`} className="cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+      <g data-testid={`map-supplier-${supplier.id}`} className="map-marker cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+        {selected && <circle r={17} fill="none" stroke="#e7f6ff" strokeOpacity="0.55" strokeWidth="1.4" />}
         <circle r={selected ? 13 : 10} fill="none" stroke={color} strokeOpacity="0.28" strokeWidth="8" className="animate-pulse-node" />
         <circle r={selected ? 6.5 : 5.2} fill={color} stroke="#e7f6ff" strokeOpacity="0.82" strokeWidth="1" />
+        <text className="map-tooltip" y="-15" textAnchor="middle">{supplier.name || supplier.country || "Supplier"}</text>
         <title>{supplier.name || "Unnamed supplier"}</title>
       </g>
     </Marker>
@@ -354,9 +393,11 @@ function SupplierMarker({ supplier, riskScore, selected, onSelect }: { supplier:
 function DemandHubMarker({ hub, selected, onSelect }: { hub: DemandHub; selected: boolean; onSelect: () => void }) {
   return (
     <Marker coordinates={toLonLat(hub.coordinates)}>
-      <g data-testid={`map-demand-${hub.id}`} className="cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+      <g data-testid={`map-demand-${hub.id}`} className="map-marker cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+        {selected && <circle r={17} fill="none" stroke="#f7f2ff" strokeOpacity="0.52" strokeWidth="1.4" />}
         <rect x="-11" y="-11" width="22" height="22" rx="4" fill="#8b5cf6" opacity="0.24" transform="rotate(45)" className="animate-demand-glow" />
         <rect x={selected ? -7 : -5.5} y={selected ? -7 : -5.5} width={selected ? 14 : 11} height={selected ? 14 : 11} rx="2" fill="#8b5cf6" stroke="#f7f2ff" strokeOpacity="0.78" strokeWidth="1" transform="rotate(45)" />
+        <text className="map-tooltip" y="-17" textAnchor="middle">{hub.name || hub.country || "Demand hub"}</text>
         <title>{hub.name || "Unnamed demand hub"}</title>
       </g>
     </Marker>
@@ -366,8 +407,10 @@ function DemandHubMarker({ hub, selected, onSelect }: { hub: DemandHub; selected
 function LogisticsHubMarker({ hub, selected, onSelect }: { hub: LogisticsHub; selected: boolean; onSelect: () => void }) {
   return (
     <Marker coordinates={toLonLat(hub.coordinates)}>
-      <g data-testid={`map-logistics-${hub.id}`} className="cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+      <g data-testid={`map-logistics-${hub.id}`} className="map-marker cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+        {selected && <circle r={16} fill="none" stroke="#e7faff" strokeOpacity="0.48" strokeWidth="1.4" />}
         <path d={selected ? "M0 -10 L9 0 L0 10 L-9 0Z" : "M0 -8 L7 0 L0 8 L-7 0Z"} fill="#23d3ee" fillOpacity="0.92" stroke="#e7faff" strokeOpacity="0.7" strokeWidth="1" />
+        <text className="map-tooltip" y="-15" textAnchor="middle">{hub.name || hub.type}</text>
         <title>{hub.name || "Unnamed logistics hub"}</title>
       </g>
     </Marker>
@@ -380,9 +423,11 @@ function RiskGeoMarker({ risk, selected, onSelect }: { risk: RiskEvent; selected
   const opacity = Math.max(0.18, Math.min(0.55, risk.severity / 140));
   return (
     <Marker coordinates={toLonLat(risk.coordinates)}>
-      <g data-testid={`map-risk-${risk.id}`} className="cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+      <g data-testid={`map-risk-${risk.id}`} className="map-marker cursor-pointer transition duration-200 hover:scale-125" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+        {selected && <circle r={size * 2.8} fill="none" stroke="#ffe1d7" strokeOpacity="0.5" strokeWidth="1.4" />}
         <circle r={size * 2.2} fill="#ff6b3a" opacity={opacity} className="animate-risk-glow" />
         <path d={`M0 -${size} L${size} ${size} L-${size} ${size}Z`} fill="#ff6b3a" stroke="#ffe1d7" strokeOpacity="0.78" strokeWidth="1" />
+        <text className="map-tooltip" y="-18" textAnchor="middle">{risk.name || "Risk event"}</text>
         <title>{risk.name || "Risk event"}</title>
       </g>
     </Marker>

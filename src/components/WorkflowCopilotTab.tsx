@@ -168,7 +168,8 @@ function StageRow({ index, stage, compact, onAction }: { index: number; stage: W
           <div className="min-w-0">
             <p className="text-xs text-cyan-100/42">Stage {index}</p>
             <h4 className="text-sm font-semibold text-white">{stage.title}</h4>
-            {!compact && <p className="mt-1 text-xs leading-5 text-cyan-100/55">{stage.whyItMatters}</p>}
+            <p className="mt-2 text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-cyan-100/38">Why It Matters</p>
+            <p className="mt-1 text-xs leading-5 text-cyan-100/55">{stage.whyItMatters}</p>
           </div>
         </div>
         <span className={`rounded border px-2 py-1 text-[0.68rem] font-semibold uppercase ${statusClass}`}>{stage.status}</span>

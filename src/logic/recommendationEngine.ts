@@ -16,6 +16,11 @@ export const buildRecommendation = (scenario: Scenario): Recommendation => {
       supplierMix: {},
       text:
         `Predictions will appear once you add at least one demand hub, one supplier, and one active supplier-to-demand route. Add supplier cost, demand volume, route cost, lead time, and capacity to generate a sourcing recommendation. Recommendation confidence is ${result.confidenceScore < 60 ? "low" : result.confidenceScore < 90 ? "medium" : "high"} at ${result.confidenceScore}%.${missing}`,
+      recommendedAllocation: "No feasible supplier allocation yet.",
+      whyThisPlan: "The sourcing network is incomplete, so the model is waiting for supplier, demand, route, cost, lead-time, and capacity inputs.",
+      keyTradeoff: "Speed of setup versus recommendation confidence.",
+      confidence: `${result.confidenceScore < 60 ? "Low" : result.confidenceScore < 90 ? "Medium" : "High"} (${result.confidenceScore}%)`,
+      missingData: result.missingDataFields,
       finalDecision: "revise",
       bestLever: "Add negotiation levers",
       biggestRisk: "Network is incomplete",
@@ -57,6 +62,7 @@ export const buildRecommendation = (scenario: Scenario): Recommendation => {
   const deltaCost = recommendedResult.totalScenarioCost - result.totalScenarioCost;
   const deltaLead = recommendedResult.avgLeadTime - result.avgLeadTime;
   const confidenceBand = result.confidenceScore >= 90 ? "high" : result.confidenceScore >= 60 ? "medium" : "low";
+  const confidenceLabel = `${confidenceBand[0].toUpperCase()}${confidenceBand.slice(1)} (${result.confidenceScore}%)`;
   const missingNote = result.missingDataFields.length
     ? ` Recommendation confidence is ${confidenceBand} because missing fields include ${result.missingDataFields.slice(0, 4).join(", ")}.`
     : ` Recommendation confidence is ${confidenceBand} because required supplier, demand, route, and capacity fields are complete.`;
@@ -76,6 +82,22 @@ export const buildRecommendation = (scenario: Scenario): Recommendation => {
   return {
     supplierMix: allocation,
     text,
+    recommendedAllocation: mix,
+    whyThisPlan: `This plan follows ${scenario.optimizationGoal.toLowerCase()} using the current supplier, demand, route, risk, product, and constraint inputs.`,
+    keyTradeoff:
+      scenario.optimizationGoal === "Lowest cost"
+        ? "Lower landed cost may increase lead time, concentration, or disruption exposure."
+        : scenario.optimizationGoal === "Lowest risk"
+          ? "Lower disruption exposure may require paying a premium or using more suppliers."
+          : scenario.optimizationGoal === "Fastest lead time"
+            ? "Faster delivery usually increases freight cost and can raise emissions."
+            : scenario.optimizationGoal === "Best ESG"
+              ? "Better ESG and lower-emission routes may increase cost or lead time."
+              : scenario.optimizationGoal === "Highest resilience"
+                ? "More diversification and capacity headroom may create management and cost overhead."
+                : "Balanced sourcing avoids extremes but may not maximize any single metric.",
+    confidence: confidenceLabel,
+    missingData: result.missingDataFields,
     finalDecision,
     bestLever,
     biggestRisk,

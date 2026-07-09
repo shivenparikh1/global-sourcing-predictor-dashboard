@@ -9,12 +9,12 @@ export default function ScenarioComparison({ rows }: { rows: ScenarioComparisonR
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-white">Scenario Comparison</h3>
-          <p className="text-xs text-cyan-100/50">Current, recommended, cost, risk, and speed plans</p>
+          <p className="text-xs text-cyan-100/50">Current, balanced, cost, risk, speed, resilience, and ESG plans</p>
         </div>
         <GitCompareArrows className="text-cyanline" size={18} />
       </div>
       <div className="overflow-auto rounded-lg border border-cyan-200/10">
-        <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+        <table className="w-full min-w-[980px] border-collapse text-left text-xs">
           <thead className="bg-cyanline/10 text-cyan-100/70">
             <tr>
               <Th>Plan</Th>
@@ -26,6 +26,7 @@ export default function ScenarioComparison({ rows }: { rows: ScenarioComparisonR
               <Th>ESG</Th>
               <Th>Resilience</Th>
               <Th>Capacity</Th>
+              <Th>Main Tradeoff</Th>
             </tr>
           </thead>
           <tbody>
@@ -40,6 +41,7 @@ export default function ScenarioComparison({ rows }: { rows: ScenarioComparisonR
                 <Td>{row.esg.toFixed(0)}</Td>
                 <Td>{row.resilience.toFixed(0)}</Td>
                 <Td>{pct(row.capacityUtilization * 100)}</Td>
+                <Td>{row.mainTradeoff}</Td>
               </tr>
             ))}
           </tbody>

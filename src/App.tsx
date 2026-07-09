@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { appConfig } from "./appConfig";
 import CommandMapTab from "./components/CommandMapTab";
 import DataInputTab from "./components/DataInputTab";
 import ForecastScenariosTab from "./components/ForecastScenariosTab";
@@ -430,7 +431,8 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${scenario.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+    const scenarioSlug = scenario.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    anchor.download = `${appConfig.exportFilePrefix}-${scenarioSlug}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -548,22 +550,28 @@ export default function App() {
                 setEditingSupplier(supplier);
                 setIsNewSupplier(false);
               }}
+              onDeleteSupplier={deleteSupplier}
               onEditDemandHub={(hub) => {
                 setEditingDemandHub(hub);
                 setIsNewDemandHub(false);
               }}
+              onDeleteDemandHub={deleteDemandHub}
               onEditLogisticsHub={(hub) => {
                 setEditingLogisticsHub(hub);
                 setIsNewLogisticsHub(false);
               }}
+              onDeleteLogisticsHub={deleteLogisticsHub}
               onEditRoute={(route) => {
                 setEditingRoute(route);
                 setIsNewRoute(false);
               }}
+              onDeleteRoute={deleteRoute}
               onEditRisk={(risk) => {
                 setEditingRisk(risk);
                 setIsNewRisk(false);
               }}
+              onDeactivateRisk={(risk) => saveRisk({ ...risk, active: false })}
+              onDeleteRisk={deleteRisk}
               onGenerateRecommendation={() => setGeneratedAt(nowStamp())}
               onApplyRecommendation={applyRecommendation}
             />

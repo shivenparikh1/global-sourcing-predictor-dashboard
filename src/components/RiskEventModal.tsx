@@ -40,8 +40,12 @@ const updateLng = (coordinates: Coordinates, lng: number): Coordinates => ({
 
 export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onClose, onSave, onDelete }: RiskEventModalProps) {
   const [draft, setDraft] = useState<RiskEvent | null>(risk);
+  const [step, setStep] = useState(0);
 
-  useEffect(() => setDraft(risk), [risk]);
+  useEffect(() => {
+    setDraft(risk);
+    setStep(0);
+  }, [risk]);
 
   if (!draft) return null;
 
@@ -76,7 +80,12 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
           </button>
         </div>
 
-        <div className="grid gap-4 p-4 lg:grid-cols-2">
+        <div className="border-b border-cyan-200/10 px-4 py-3">
+          <StepTabs steps={["Event Definition", "Affected Scope", "Impacts & Mitigation"]} activeStep={step} onChange={setStep} />
+        </div>
+
+        <div className="p-4">
+        {step === 0 && (
           <section className="panel-soft p-4">
             <h3 className="mb-3 text-sm font-semibold text-white">Event Definition</h3>
             <div className="grid gap-3">
@@ -116,7 +125,7 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
                 </label>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                {numberFields.map(([key, label, unit]) => (
+                {numberFields.slice(5).map(([key, label, unit]) => (
                   <label key={key} className="grid gap-1">
                     <span className="text-xs text-cyan-100/70">{label}</span>
                     <div className="flex overflow-hidden rounded-md border border-cyan-200/20 bg-ink-950/70">
@@ -132,7 +141,9 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
               </div>
             </div>
           </section>
+        )}
 
+        {step === 1 && (
           <section className="panel-soft p-4">
             <h3 className="mb-3 text-sm font-semibold text-white">Affected Scope</h3>
             <div className="grid gap-4">
@@ -189,6 +200,31 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
               </div>
             </div>
           </section>
+        )}
+
+        {step === 2 && (
+          <section className="panel-soft p-4">
+            <h3 className="mb-3 text-sm font-semibold text-white">Impacts & Mitigation</h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              {numberFields.slice(0, 5).map(([key, label, unit]) => (
+                <label key={key} className="grid gap-1">
+                  <span className="text-xs text-cyan-100/70">{label}</span>
+                  <div className="flex overflow-hidden rounded-md border border-cyan-200/20 bg-ink-950/70">
+                    <NumberInput
+                      className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-slate-100 outline-none"
+                      value={draft[key] as number}
+                      onChange={(value) => setDraft({ ...draft, [key]: value })}
+                    />
+                    <span className="flex min-w-14 items-center justify-center border-l border-cyan-200/10 px-2 text-[0.68rem] text-cyan-100/50">{unit}</span>
+                  </div>
+                </label>
+              ))}
+              <div className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-50/82 md:col-span-2">
+                Suggested mitigations will appear in the map inspector after saving. Use the description and impact fields to make the mitigation plan specific.
+              </div>
+            </div>
+          </section>
+        )}
         </div>
 
         <div className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t border-cyan-200/10 bg-ink-900/95 p-4 backdrop-blur-xl">
@@ -208,6 +244,24 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StepTabs({ steps, activeStep, onChange }: { steps: string[]; activeStep: number; onChange: (step: number) => void }) {
+  return (
+    <div className="grid gap-2 md:grid-cols-3">
+      {steps.map((step, index) => (
+        <button
+          key={step}
+          className={`rounded-md border px-3 py-2 text-left text-xs font-semibold transition ${activeStep === index ? "border-cyanline/45 bg-cyanline/15 text-white shadow-glow" : "border-cyan-200/10 bg-ink-950/45 text-cyan-100/55 hover:border-cyanline/30 hover:text-white"}`}
+          type="button"
+          onClick={() => onChange(index)}
+        >
+          <span className="block text-[0.65rem] text-cyan-100/40">Step {index + 1}</span>
+          {step}
+        </button>
+      ))}
     </div>
   );
 }

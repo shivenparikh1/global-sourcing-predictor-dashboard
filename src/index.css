@@ -113,6 +113,28 @@ input[type="range"] {
   transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.map-tooltip {
+  pointer-events: none;
+  opacity: 0;
+  paint-order: stroke;
+  stroke: rgba(2, 7, 17, 0.92);
+  stroke-width: 4px;
+  fill: #e7f6ff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.map-marker:hover .map-tooltip {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+.map-route-group:hover .route-hover-line {
+  stroke-opacity: 0.36;
+}
+
 @keyframes tabIn {
   from {
     opacity: 0;

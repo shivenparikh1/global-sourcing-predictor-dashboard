@@ -19,7 +19,7 @@ const goalWeights: Record<OptimizationGoal, WeightSettings> = {
 };
 
 export const getWeightsForGoal = (goal: OptimizationGoal, current: WeightSettings) =>
-  goal === "Best balanced" ? current : goalWeights[goal];
+  goal === "Best balanced" ? goalWeights[goal] ?? current : goalWeights[goal];
 
 export const buildRecommendedAllocation = (scenario: Scenario, goal: OptimizationGoal = scenario.optimizationGoal) => {
   const totalDemand = getTotalDemand(scenario);
@@ -32,7 +32,6 @@ export const buildRecommendedAllocation = (scenario: Scenario, goal: Optimizatio
         route.active &&
         route.supplierId === supplier.supplierId &&
         Boolean(route.demandHubId) &&
-        route.allocationPct > 0 &&
         route.freightCost > 0 &&
         route.transitTime > 0,
     );
@@ -108,17 +107,169 @@ export const buildRecommendedAllocation = (scenario: Scenario, goal: Optimizatio
   return result;
 };
 
-export const applyAllocation = (scenario: Scenario, allocation: Record<string, number>): Scenario => ({
-  ...scenario,
-  suppliers: scenario.suppliers.map((supplier) => ({
-    ...supplier,
-    allocation: Number((allocation[supplier.id] ?? 0).toFixed(1)),
-    included: (allocation[supplier.id] ?? 0) > 0,
-  })),
-  updatedAt: new Date().toISOString(),
-});
+export const applyAllocation = (scenario: Scenario, allocation: Record<string, number>): Scenario => {
+  const updatedSuppliers = scenario.suppliers.map((supplier) => {
+    const allocationPct = Number((allocation[supplier.id] ?? 0).toFixed(1));
+    return {
+      ...supplier,
+      allocation: allocationPct,
+      included: allocationPct > 0,
+    };
+  });
 
-const rowFromScenario = (name: string, scenario: Scenario): ScenarioComparisonRow => {
+  const updatedRoutes = scenario.routes.map((route) => {
+    if (!route.active || !route.demandHubId) return route;
+    const siblingRoutes = scenario.routes.filter((item) => item.active && item.demandHubId === route.demandHubId);
+    const desiredTotal = siblingRoutes.reduce((sum, item) => sum + Math.max(0, allocation[item.supplierId] ?? 0), 0);
+    if (desiredTotal <= 0) return { ...route, allocationPct: 0 };
+    const routeShare = ((allocation[route.supplierId] ?? 0) / desiredTotal) * 100;
+    return { ...route, allocationPct: Number(clamp(routeShare, 0, 100).toFixed(1)) };
+  });
+
+  return {
+    ...scenario,
+    suppliers: updatedSuppliers,
+    routes: updatedRoutes,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+const adjustPct = (value: number, pct: number) => Number(Math.max(0, value * (1 + pct / 100)).toFixed(2));
+const adjustScore = (value: number, points: number) => Number(clamp(value + points, 0, 100).toFixed(1));
+
+export const applyPlanTradeoffModel = (scenario: Scenario, goal: OptimizationGoal): Scenario => {
+  const weightedScenario: Scenario = {
+    ...scenario,
+    optimizationGoal: goal,
+    weights: goalWeights[goal] ?? scenario.weights,
+    budget: {
+      ...scenario.budget,
+      maxSupplierAllocation:
+        goal === "Highest resilience"
+          ? Math.min(scenario.budget.maxSupplierAllocation || 45, 45)
+          : goal === "Lowest cost"
+            ? scenario.budget.maxSupplierAllocation || 85
+            : scenario.budget.maxSupplierAllocation,
+    },
+  };
+
+  if (goal === "Best balanced") return weightedScenario;
+
+  return {
+    ...weightedScenario,
+    suppliers: weightedScenario.suppliers.map((supplier) => {
+      if (goal === "Lowest cost") {
+        return {
+          ...supplier,
+          baseUnitCost: adjustPct(supplier.baseUnitCost, -6),
+          leadTime: adjustPct(supplier.leadTime, 8),
+          reliability: adjustScore(supplier.reliability, -2),
+          politicalRisk: adjustScore(supplier.politicalRisk, 3),
+          currencyRisk: adjustScore(supplier.currencyRisk, 2),
+        };
+      }
+      if (goal === "Lowest risk") {
+        return {
+          ...supplier,
+          baseUnitCost: adjustPct(supplier.baseUnitCost, 4),
+          reliability: adjustScore(supplier.reliability, 3),
+          politicalRisk: adjustScore(supplier.politicalRisk, -7),
+          currencyRisk: adjustScore(supplier.currencyRisk, -5),
+          naturalDisasterRisk: adjustScore(supplier.naturalDisasterRisk, -5),
+          financialHealth: adjustScore(supplier.financialHealth, 2),
+        };
+      }
+      if (goal === "Fastest lead time") {
+        return {
+          ...supplier,
+          baseUnitCost: adjustPct(supplier.baseUnitCost, 2),
+          leadTime: adjustPct(supplier.leadTime, -16),
+          reliability: adjustScore(supplier.reliability, 1),
+        };
+      }
+      if (goal === "Best ESG") {
+        return {
+          ...supplier,
+          baseUnitCost: adjustPct(supplier.baseUnitCost, 3),
+          esgScore: adjustScore(supplier.esgScore, 8),
+          reliability: adjustScore(supplier.reliability, 1),
+        };
+      }
+      return {
+        ...supplier,
+        baseUnitCost: adjustPct(supplier.baseUnitCost, 3),
+        reliability: adjustScore(supplier.reliability, 2),
+        capacity: Math.round(supplier.capacity * 1.1),
+        politicalRisk: adjustScore(supplier.politicalRisk, -3),
+        currencyRisk: adjustScore(supplier.currencyRisk, -3),
+        naturalDisasterRisk: adjustScore(supplier.naturalDisasterRisk, -3),
+      };
+    }),
+    routes: weightedScenario.routes.map((route) => {
+      if (goal === "Lowest cost") {
+        return {
+          ...route,
+          freightCost: adjustPct(route.freightCost, -8),
+          transitTime: adjustPct(route.transitTime, 10),
+          delayProbability: adjustScore(route.delayProbability, 5),
+          customsRisk: adjustScore(route.customsRisk, 3),
+          portCongestionRisk: adjustScore(route.portCongestionRisk, 3),
+        };
+      }
+      if (goal === "Lowest risk") {
+        return {
+          ...route,
+          freightCost: adjustPct(route.freightCost, 6),
+          transitTime: adjustPct(route.transitTime, -3),
+          delayProbability: adjustScore(route.delayProbability, -9),
+          customsRisk: adjustScore(route.customsRisk, -8),
+          portCongestionRisk: adjustScore(route.portCongestionRisk, -8),
+        };
+      }
+      if (goal === "Fastest lead time") {
+        return {
+          ...route,
+          freightCost: adjustPct(route.freightCost, 18),
+          transitTime: adjustPct(route.transitTime, -32),
+          delayProbability: adjustScore(route.delayProbability, -4),
+          emissionsFactor: adjustPct(route.emissionsFactor, 14),
+        };
+      }
+      if (goal === "Best ESG") {
+        return {
+          ...route,
+          freightCost: adjustPct(route.freightCost, 5),
+          transitTime: adjustPct(route.transitTime, 6),
+          emissionsFactor: adjustPct(route.emissionsFactor, -28),
+          portCongestionRisk: adjustScore(route.portCongestionRisk, -3),
+        };
+      }
+      return {
+        ...route,
+        freightCost: adjustPct(route.freightCost, 4),
+        delayProbability: adjustScore(route.delayProbability, -5),
+        customsRisk: adjustScore(route.customsRisk, -4),
+        portCongestionRisk: adjustScore(route.portCongestionRisk, -4),
+      };
+    }),
+  };
+};
+
+export const buildOptimizedScenarioForGoal = (scenario: Scenario, goal: OptimizationGoal): Scenario => {
+  const modeled = applyPlanTradeoffModel(scenario, goal);
+  return applyAllocation(modeled, buildRecommendedAllocation(modeled, goal));
+};
+
+const tradeoffForGoal = (goal: OptimizationGoal) => {
+  if (goal === "Lowest cost") return "Cost down; risk and lead time may rise.";
+  if (goal === "Lowest risk") return "Risk down; cost and supplier-management effort rise.";
+  if (goal === "Fastest lead time") return "Lead time down; freight cost and emissions rise.";
+  if (goal === "Best ESG") return "ESG and emissions improve; cost or lead time may rise.";
+  if (goal === "Highest resilience") return "Resilience up; allocation spreads and cost overhead rise.";
+  return "Balanced tradeoff across cost, risk, speed, service, ESG, and resilience.";
+};
+
+const rowFromScenario = (name: string, scenario: Scenario, mainTradeoff: string): ScenarioComparisonRow => {
   const result = calculatePrediction(scenario);
   return {
     name,
@@ -130,20 +281,25 @@ const rowFromScenario = (name: string, scenario: Scenario): ScenarioComparisonRo
     esg: result.esgAverage,
     resilience: result.resilienceScore,
     capacityUtilization: result.capacityUtilization,
+    mainTradeoff,
   };
 };
 
 export const buildComparisonRows = (scenario: Scenario): ScenarioComparisonRow[] => {
-  const recommended = applyAllocation(scenario, buildRecommendedAllocation(scenario, scenario.optimizationGoal));
-  const lowestCost = applyAllocation(scenario, buildRecommendedAllocation(scenario, "Lowest cost"));
-  const lowestRisk = applyAllocation(scenario, buildRecommendedAllocation(scenario, "Lowest risk"));
-  const fastest = applyAllocation(scenario, buildRecommendedAllocation(scenario, "Fastest lead time"));
+  const balanced = buildOptimizedScenarioForGoal(scenario, "Best balanced");
+  const lowestCost = buildOptimizedScenarioForGoal(scenario, "Lowest cost");
+  const lowestRisk = buildOptimizedScenarioForGoal(scenario, "Lowest risk");
+  const fastest = buildOptimizedScenarioForGoal(scenario, "Fastest lead time");
+  const highestResilience = buildOptimizedScenarioForGoal(scenario, "Highest resilience");
+  const bestEsg = buildOptimizedScenarioForGoal(scenario, "Best ESG");
   return [
-    rowFromScenario("Current plan", scenario),
-    rowFromScenario("AI recommended plan", recommended),
-    rowFromScenario("Lowest cost plan", lowestCost),
-    rowFromScenario("Lowest risk plan", lowestRisk),
-    rowFromScenario("Fastest delivery plan", fastest),
+    rowFromScenario("Current plan", scenario, "Current entered allocation and assumptions."),
+    rowFromScenario("Balanced plan", balanced, tradeoffForGoal("Best balanced")),
+    rowFromScenario("Lowest cost plan", lowestCost, tradeoffForGoal("Lowest cost")),
+    rowFromScenario("Lowest risk plan", lowestRisk, tradeoffForGoal("Lowest risk")),
+    rowFromScenario("Fastest delivery plan", fastest, tradeoffForGoal("Fastest lead time")),
+    rowFromScenario("Highest resilience plan", highestResilience, tradeoffForGoal("Highest resilience")),
+    rowFromScenario("Best ESG plan", bestEsg, tradeoffForGoal("Best ESG")),
   ];
 };
 

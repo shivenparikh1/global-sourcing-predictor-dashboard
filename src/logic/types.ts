@@ -266,6 +266,11 @@ export interface PredictionResult {
 export interface Recommendation {
   supplierMix: Record<string, number>;
   text: string;
+  recommendedAllocation: string;
+  whyThisPlan: string;
+  keyTradeoff: string;
+  confidence: string;
+  missingData: string[];
   finalDecision: "approve" | "revise" | "reject";
   bestLever: string;
   biggestRisk: string;
@@ -281,6 +286,7 @@ export interface ScenarioComparisonRow {
   esg: number;
   resilience: number;
   capacityUtilization: number;
+  mainTradeoff: string;
 }
 
 export interface Scenario {

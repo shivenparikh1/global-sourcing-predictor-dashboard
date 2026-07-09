@@ -17,6 +17,12 @@ export default function ForecastPanel({ prediction }: { prediction: PredictionRe
       <div className="rounded-lg border border-cyan-200/10 bg-ink-950/50 p-2">
         <ForecastSvg points={prediction.forecast} />
       </div>
+      <div className="mt-2 flex flex-wrap gap-2 text-[0.68rem] text-cyan-100/58">
+        <Legend color="#23d3ee" label="Cost" />
+        <Legend color="#ff6b3a" label="Risk" />
+        <Legend color="#f4b94f" label="Lead Time" />
+        <Legend color="#33d17a" label="Service" />
+      </div>
       <div className="mt-3 grid grid-cols-4 gap-2 text-[0.68rem]">
         <Stat label="Cost" value={currency(lastPoint?.cost ?? prediction.totalScenarioCost)} />
         <Stat label="Risk" value={(lastPoint?.risk ?? prediction.weightedRisk).toFixed(1)} />
@@ -57,6 +63,12 @@ function ForecastSvg({ points }: { points: ForecastPoint[] }) {
       {[0, 1, 2, 3].map((tick) => (
         <line key={tick} x1={pad} x2={width - pad} y1={pad + tick * 34} y2={pad + tick * 34} stroke="#8bdcff" strokeOpacity="0.1" />
       ))}
+      <text x="10" y={height / 2} fill="#9cc8d7" fontSize="9" textAnchor="middle" transform={`rotate(-90 10 ${height / 2})`}>
+        Relative Value
+      </text>
+      <text x={width / 2} y={height - 2} fill="#9cc8d7" fontSize="9" textAnchor="middle">
+        Forecast Horizon
+      </text>
       {lineFor("cost", "#23d3ee")}
       {lineFor("risk", "#ff6b3a")}
       {lineFor("leadTime", "#f4b94f")}
@@ -64,12 +76,26 @@ function ForecastSvg({ points }: { points: ForecastPoint[] }) {
       {points.map((point, index) => (
         <g key={point.day}>
           <line x1={xFor(index)} x2={xFor(index)} y1={height - pad} y2={height - pad + 4} stroke="#8bdcff" strokeOpacity="0.4" />
+          <circle cx={xFor(index)} cy={pad + 4} r="2.5" fill="#23d3ee" opacity="0.72">
+            <title>
+              {`${point.day}d: cost ${point.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}, risk ${point.risk.toFixed(1)}, lead ${point.leadTime.toFixed(1)}d, service ${point.serviceLevel.toFixed(1)}%`}
+            </title>
+          </circle>
           <text x={xFor(index)} y={height - 6} textAnchor="middle" fill="#9cc8d7" fontSize="10">
             {point.day}d
           </text>
         </g>
       ))}
     </svg>
+  );
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="h-2 w-4 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}` }} />
+      {label}
+    </span>
   );
 }
 

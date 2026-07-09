@@ -1,5 +1,6 @@
 import { Download, RotateCcw, Save, Upload } from "lucide-react";
 import { useRef } from "react";
+import { appConfig } from "../appConfig";
 import type { Scenario } from "../logic/types";
 import { compactDateTime } from "./format";
 
@@ -37,13 +38,13 @@ export default function Header({
   return (
     <header className="panel flex flex-col gap-2 px-3 py-2 2xl:flex-row 2xl:items-center 2xl:justify-between">
       <div className="min-w-0 pr-2">
-        <h1 className="truncate text-lg font-semibold leading-6 text-white">Global Sourcing Predictor</h1>
-        <p className="truncate text-[0.7rem] font-medium uppercase tracking-[0.12em] text-slate-400">Supplier Risk, Cost, Capacity & Logistics Intelligence</p>
+        <h1 className="truncate text-lg font-semibold leading-6 text-white">{appConfig.appName}</h1>
+        <p className="truncate text-[0.7rem] font-medium uppercase tracking-[0.12em] text-slate-400">{appConfig.appSubtitle}</p>
       </div>
 
       <div className="flex w-full flex-wrap items-end gap-2 2xl:w-auto 2xl:justify-end">
         <div className="flex flex-col gap-1">
-          <span className="label">Dashboards</span>
+          <span className="label">Workspace Slots</span>
           <div className="flex gap-1 rounded-md border border-slate-500/20 bg-ink-950/55 p-0.5">
             {dashboardSlots.map((slot, index) => (
               <button

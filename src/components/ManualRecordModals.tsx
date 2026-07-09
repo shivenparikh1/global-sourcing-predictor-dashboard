@@ -35,35 +35,50 @@ const updateLng = (coordinates: Coordinates, lng: number): Coordinates => ({
 
 export function DemandHubModal({ value, isNew, onClose, onSave, onDelete }: BaseModalProps<DemandHub>) {
   const [draft, setDraft] = useState<DemandHub | null>(value);
-  useEffect(() => setDraft(value), [value]);
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    setDraft(value);
+    setStep(0);
+  }, [value]);
   if (!draft) return null;
 
   return (
     <ModalShell title={isNew ? "Add Demand Hub" : "Demand Hub"} subtitle="Customer, region, plant, warehouse, or delivery market." onClose={onClose}>
-      <div className="grid gap-3 md:grid-cols-2">
-        <FormField id="demand-name" label="Demand Hub" helper="A customer, market, plant, warehouse, or region that needs delivered supply." placeholder="Example: US East DC" validation="Demand hub name is required." value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
-        <SearchableSelect label={fieldHelp.country.label} helper={fieldHelp.country.helper} value={draft.country} options={countryOptions} placeholder={fieldHelp.country.placeholder} onChange={(country) => setDraft({ ...draft, country, region: draft.region || getRegionForCountry(country) })} />
-        <SearchableSelect label={fieldHelp.region.label} helper={fieldHelp.region.helper} value={draft.region} options={regionOptions} placeholder={fieldHelp.region.placeholder} onChange={(region) => setDraft({ ...draft, region })} />
-        <FormField id="monthly-demand" type="number" min={0} {...fieldHelp.monthlyDemand} value={draft.monthlyDemand} onChange={(monthlyDemand) => setDraft({ ...draft, monthlyDemand: Number(monthlyDemand) })} />
-        <FormField id="forecast-demand" type="number" min={0} {...simple("Forecast Demand", "Expected future demand for this hub during the scenario horizon.", "Example: 14000", "Forecast demand cannot be negative.", "units")} value={draft.forecastDemand} onChange={(forecastDemand) => setDraft({ ...draft, forecastDemand: Number(forecastDemand) })} />
-        <FormField id="service-target" type="number" min={0} max={100} {...fieldHelp.serviceLevelTarget} value={draft.serviceLevelTarget} onChange={(serviceLevelTarget) => setDraft({ ...draft, serviceLevelTarget: Number(serviceLevelTarget) })} />
-        <FormField id="max-lead" type="number" min={0} {...fieldHelp.maxLeadTime} value={draft.maxLeadTime} onChange={(maxLeadTime) => setDraft({ ...draft, maxLeadTime: Number(maxLeadTime) })} />
-        <FormField id="current-inventory" type="number" min={0} {...simple("Current Inventory", "Units currently available to serve this demand hub.", "Example: 5000", "Current inventory cannot be negative.", "units")} value={draft.currentInventory} onChange={(currentInventory) => setDraft({ ...draft, currentInventory: Number(currentInventory) })} />
-        <FormField id="safety-stock" type="number" min={0} {...simple("Safety Stock", "Inventory buffer held to absorb demand or supply variability.", "Example: 15", "Safety stock cannot be negative.", "days")} value={draft.safetyStock} onChange={(safetyStock) => setDraft({ ...draft, safetyStock: Number(safetyStock) })} />
-        <label className="grid gap-1">
-          <span className="text-xs font-semibold text-cyan-100/75">Priority Level</span>
-          <span className="text-[0.7rem] text-cyan-100/48">Business criticality for this demand location.</span>
-          <select className="input" value={draft.priorityLevel} onChange={(event) => setDraft({ ...draft, priorityLevel: event.target.value as DemandHub["priorityLevel"] })}>
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
-            <option>Critical</option>
-          </select>
-        </label>
-        <FormField id="required-date" type="date" label="Required Delivery Date" helper="Target date when this hub needs supply available." validation="Use a valid delivery date when date-sensitive." value={draft.requiredDeliveryDate} onChange={(requiredDeliveryDate) => setDraft({ ...draft, requiredDeliveryDate })} />
-        <CoordinateFields coordinates={draft.coordinates} onChange={(coordinates) => setDraft({ ...draft, coordinates })} />
-        <FormField id="demand-notes" type="textarea" label="Notes" helper="Optional context about customers, market constraints, or service promises." placeholder="Example: Priority retail launch region" validation="Optional." value={draft.notes} onChange={(notes) => setDraft({ ...draft, notes })} />
-      </div>
+      <StepTabs steps={["Hub Profile", "Demand & Service", "Inventory & Coordinates"]} activeStep={step} onChange={setStep} />
+      {step === 0 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <FormField id="demand-name" label="Demand Hub" helper="A customer, market, plant, warehouse, or region that needs delivered supply." placeholder="Example: US East DC" validation="Demand hub name is required." value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
+          <SearchableSelect label={fieldHelp.country.label} helper={fieldHelp.country.helper} value={draft.country} options={countryOptions} placeholder={fieldHelp.country.placeholder} onChange={(country) => setDraft({ ...draft, country, region: draft.region || getRegionForCountry(country) })} />
+          <SearchableSelect label={fieldHelp.region.label} helper={fieldHelp.region.helper} value={draft.region} options={regionOptions} placeholder={fieldHelp.region.placeholder} onChange={(region) => setDraft({ ...draft, region })} />
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold text-cyan-100/75">Priority Level</span>
+            <span className="text-[0.7rem] text-cyan-100/48">Business criticality for this demand location.</span>
+            <select className="input" value={draft.priorityLevel} onChange={(event) => setDraft({ ...draft, priorityLevel: event.target.value as DemandHub["priorityLevel"] })}>
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+              <option>Critical</option>
+            </select>
+          </label>
+          <FormField id="demand-notes" type="textarea" label="Notes" helper="Optional context about customers, market constraints, or service promises." placeholder="Example: Priority retail launch region" validation="Optional." value={draft.notes} onChange={(notes) => setDraft({ ...draft, notes })} />
+        </div>
+      )}
+      {step === 1 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <FormField id="monthly-demand" type="number" min={0} {...fieldHelp.monthlyDemand} value={draft.monthlyDemand} onChange={(monthlyDemand) => setDraft({ ...draft, monthlyDemand: Number(monthlyDemand) })} />
+          <FormField id="forecast-demand" type="number" min={0} {...simple("Forecast Demand", "Expected future demand for this hub during the scenario horizon.", "Example: 14000", "Forecast demand cannot be negative.", "units")} value={draft.forecastDemand} onChange={(forecastDemand) => setDraft({ ...draft, forecastDemand: Number(forecastDemand) })} />
+          <FormField id="service-target" type="number" min={0} max={100} {...fieldHelp.serviceLevelTarget} value={draft.serviceLevelTarget} onChange={(serviceLevelTarget) => setDraft({ ...draft, serviceLevelTarget: Number(serviceLevelTarget) })} />
+          <FormField id="max-lead" type="number" min={0} {...fieldHelp.maxLeadTime} value={draft.maxLeadTime} onChange={(maxLeadTime) => setDraft({ ...draft, maxLeadTime: Number(maxLeadTime) })} />
+          <FormField id="required-date" type="date" label="Required Delivery Date" helper="Target date when this hub needs supply available." validation="Use a valid delivery date when date-sensitive." value={draft.requiredDeliveryDate} onChange={(requiredDeliveryDate) => setDraft({ ...draft, requiredDeliveryDate })} />
+        </div>
+      )}
+      {step === 2 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <FormField id="current-inventory" type="number" min={0} {...simple("Current Inventory", "Units currently available to serve this demand hub.", "Example: 5000", "Current inventory cannot be negative.", "units")} value={draft.currentInventory} onChange={(currentInventory) => setDraft({ ...draft, currentInventory: Number(currentInventory) })} />
+          <FormField id="safety-stock" type="number" min={0} {...simple("Safety Stock", "Inventory buffer held to absorb demand or supply variability.", "Example: 15", "Safety stock cannot be negative.", "days")} value={draft.safetyStock} onChange={(safetyStock) => setDraft({ ...draft, safetyStock: Number(safetyStock) })} />
+          <CoordinateFields coordinates={draft.coordinates} onChange={(coordinates) => setDraft({ ...draft, coordinates })} />
+        </div>
+      )}
       <ModalActions isNew={isNew} id={draft.id} onDelete={onDelete} onClose={onClose} onSave={() => onSave(draft)} />
     </ModalShell>
   );
@@ -105,7 +120,11 @@ export function LogisticsHubModal({ value, isNew, onClose, onSave, onDelete }: B
 
 export function RouteLaneModal({ value, scenario, isNew, onClose, onSave, onDelete }: BaseModalProps<Route> & { scenario: Scenario }) {
   const [draft, setDraft] = useState<Route | null>(value);
-  useEffect(() => setDraft(value), [value]);
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    setDraft(value);
+    setStep(0);
+  }, [value]);
   if (!draft) return null;
 
   const selectedSupplier = scenario.suppliers.find((supplier) => supplier.id === draft.supplierId);
@@ -113,6 +132,8 @@ export function RouteLaneModal({ value, scenario, isNew, onClose, onSave, onDele
 
   return (
     <ModalShell title={isNew ? "Create Supplier-to-Demand Route" : "Route/Lane"} subtitle="Connect one supplier to one demand hub with lane assumptions." onClose={onClose}>
+      <StepTabs steps={["Lane Endpoints", "Cost & Transit", "Risk & Emissions"]} activeStep={step} onChange={setStep} />
+      {step === 0 && (
       <div className="grid gap-3 md:grid-cols-2">
         <label className="grid gap-1">
           <span className="text-xs font-semibold text-cyan-100/75">Origin Supplier</span>
@@ -159,9 +180,17 @@ export function RouteLaneModal({ value, scenario, isNew, onClose, onSave, onDele
             {transportModes.map((mode) => <option key={mode}>{mode}</option>)}
           </select>
         </label>
+      </div>
+      )}
+      {step === 1 && (
+      <div className="grid gap-3 md:grid-cols-2">
         <FormField id="route-allocation" type="number" min={0} max={100} label="Allocation Percentage" helper="Share of the selected demand hub served by this lane." placeholder="Example: 40" unit="%" validation="Route allocations should total 100% for each demand hub." value={draft.allocationPct} onChange={(allocationPct) => setDraft({ ...draft, allocationPct: Number(allocationPct) })} />
         <FormField id="route-freight" type="number" min={0} {...fieldHelp.freightCost} value={draft.freightCost} onChange={(freightCost) => setDraft({ ...draft, freightCost: Number(freightCost) })} />
         <FormField id="route-transit" type="number" min={0} {...fieldHelp.transitTime} value={draft.transitTime} onChange={(transitTime) => setDraft({ ...draft, transitTime: Number(transitTime) })} />
+      </div>
+      )}
+      {step === 2 && (
+      <div className="grid gap-3 md:grid-cols-2">
         <FormField id="route-delay" type="number" min={0} max={100} {...fieldHelp.delayProbability} value={draft.delayProbability} onChange={(delayProbability) => setDraft({ ...draft, delayProbability: Number(delayProbability) })} />
         <FormField id="route-customs" type="number" min={0} max={100} label="Customs Risk" helper="Chance of clearance delays or compliance holds on this route." placeholder="Example: 20" unit="0-100" validation="Customs risk must be between 0 and 100." value={draft.customsRisk} onChange={(customsRisk) => setDraft({ ...draft, customsRisk: Number(customsRisk) })} />
         <FormField id="route-congestion" type="number" min={0} max={100} label="Port Congestion Risk" helper="Likelihood of queueing, dwell time, or capacity constraints along this route." placeholder="Example: 35" unit="0-100" validation="Congestion risk must be between 0 and 100." value={draft.portCongestionRisk} onChange={(portCongestionRisk) => setDraft({ ...draft, portCongestionRisk: Number(portCongestionRisk) })} />
@@ -176,6 +205,7 @@ export function RouteLaneModal({ value, scenario, isNew, onClose, onSave, onDele
           <p className="mt-1">Selected route: {selectedSupplier?.name || "supplier missing"} to {selectedHub?.name || "demand hub missing"}.</p>
         </div>
       </div>
+      )}
       <ModalActions isNew={isNew} id={draft.id} onDelete={onDelete} onClose={onClose} onSave={() => onSave(draft)} />
     </ModalShell>
   );
@@ -290,6 +320,24 @@ function ModalActions({ isNew, id, onDelete, onClose, onSave }: { isNew?: boolea
         <button className="btn" type="button" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" type="button" onClick={onSave}>Save</button>
       </div>
+    </div>
+  );
+}
+
+function StepTabs({ steps, activeStep, onChange }: { steps: string[]; activeStep: number; onChange: (step: number) => void }) {
+  return (
+    <div className="mb-4 grid gap-2 md:grid-cols-3">
+      {steps.map((step, index) => (
+        <button
+          key={step}
+          className={`rounded-md border px-3 py-2 text-left text-xs font-semibold transition ${activeStep === index ? "border-cyanline/45 bg-cyanline/15 text-white shadow-glow" : "border-cyan-200/10 bg-ink-950/45 text-cyan-100/55 hover:border-cyanline/30 hover:text-white"}`}
+          type="button"
+          onClick={() => onChange(index)}
+        >
+          <span className="block text-[0.65rem] text-cyan-100/40">Step {index + 1}</span>
+          {step}
+        </button>
+      ))}
     </div>
   );
 }

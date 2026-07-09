@@ -18,6 +18,7 @@ interface ForecastScenariosTabProps {
 export default function ForecastScenariosTab({ scenario, prediction, comparisonRows, onEditForecast, onChangeGoal, onChangeWeights }: ForecastScenariosTabProps) {
   const completeEnough = prediction.activeSupplierCount > 0 && prediction.totalDemand > 0 && prediction.activeRouteCount > 0 && prediction.confidenceScore >= 60;
   const lastPoint = prediction.forecast[prediction.forecast.length - 1];
+  const forecastDrivers = buildForecastDrivers(scenario, prediction);
 
   return (
     <section className="grid gap-4 animate-tab-in xl:grid-cols-[minmax(0,1fr)_25rem]">
@@ -51,20 +52,33 @@ export default function ForecastScenariosTab({ scenario, prediction, comparisonR
 
         <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_26rem]">
           <ForecastPanel prediction={prediction} />
-          <section className="panel-soft p-4">
-            <h3 className="text-sm font-semibold text-white">Forecast Assumptions</h3>
-            <p className="mt-1 text-xs text-cyan-100/52">Planning assumptions applied to the local projection engine.</p>
-            <div className="mt-4 grid gap-2 text-sm text-cyan-100/70">
-              <Assumption label="Demand Growth" value={`${scenario.forecastAssumptions.demandGrowthPct}%`} />
-              <Assumption label="Cost Inflation" value={`${scenario.forecastAssumptions.costInflationPct}%`} />
-              <Assumption label="Risk Trend" value={`${scenario.forecastAssumptions.riskTrendPct} pts`} />
-              <Assumption label="Service Drift" value={`${scenario.forecastAssumptions.serviceDriftPct} pts`} />
-              <div className="rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3">
-                <p className="text-xs text-cyan-100/45">Seasonality Notes</p>
-                <p className="mt-1 text-sm leading-5 text-white">{scenario.forecastAssumptions.seasonalityNotes || "No notes entered."}</p>
+          <div className="grid gap-4">
+            <section className="panel-soft p-4">
+              <h3 className="text-sm font-semibold text-white">Forecast Assumptions</h3>
+              <p className="mt-1 text-xs text-cyan-100/52">Planning assumptions applied to the local projection engine.</p>
+              <div className="mt-4 grid gap-2 text-sm text-cyan-100/70">
+                <Assumption label="Demand Growth" value={`${scenario.forecastAssumptions.demandGrowthPct}%`} />
+                <Assumption label="Cost Inflation" value={`${scenario.forecastAssumptions.costInflationPct}%`} />
+                <Assumption label="Risk Trend" value={`${scenario.forecastAssumptions.riskTrendPct} pts`} />
+                <Assumption label="Service Drift" value={`${scenario.forecastAssumptions.serviceDriftPct} pts`} />
+                <div className="rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3">
+                  <p className="text-xs text-cyan-100/45">Seasonality Notes</p>
+                  <p className="mt-1 text-sm leading-5 text-white">{scenario.forecastAssumptions.seasonalityNotes || "No notes entered."}</p>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+            <section className="panel-soft p-4">
+              <h3 className="text-sm font-semibold text-white">Why Forecast Changed</h3>
+              <p className="mt-1 text-xs text-cyan-100/52">Drivers affecting cost, risk, service, and lead-time projections.</p>
+              <div className="mt-3 grid gap-2">
+                {forecastDrivers.map((driver) => (
+                  <div key={driver} className="rounded-md border border-cyan-200/10 bg-ink-950/45 px-3 py-2 text-xs leading-5 text-cyan-50/78">
+                    {driver}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
         </div>
 
         <ScenarioComparison rows={completeEnough ? comparisonRows : []} />
@@ -84,6 +98,22 @@ export default function ForecastScenariosTab({ scenario, prediction, comparisonR
       </aside>
     </section>
   );
+}
+
+function buildForecastDrivers(scenario: Scenario, prediction: PredictionResult) {
+  const activeRisks = scenario.riskEvents.filter((risk) => risk.active);
+  const activeLevers = scenario.levers.filter((lever) => lever.active);
+  const drivers = [
+    `${scenario.forecastAssumptions.demandGrowthPct || 0}% demand growth changes total projected volume and cost.`,
+    `${scenario.forecastAssumptions.costInflationPct || 0}% cost inflation changes landed cost over the horizon.`,
+    `${scenario.forecastAssumptions.riskTrendPct || 0} risk-trend points shift the risk line over time.`,
+    `${scenario.forecastAssumptions.serviceDriftPct || 0} service-drift points adjust service projection.`,
+    `${activeRisks.length} active risk event${activeRisks.length === 1 ? "" : "s"} pressure cost, risk, lead time, and service.`,
+    `${activeLevers.length} active negotiation lever${activeLevers.length === 1 ? "" : "s"} adjust cost, service, lead time, emissions, or resilience.`,
+    `${scenario.optimizationGoal} changes the base plan that the forecast projects from.`,
+  ];
+  if (prediction.confidenceScore < 60) drivers.push("Low data confidence means forecast lines are directional until missing inputs are completed.");
+  return drivers;
 }
 
 function ForecastKpi({ label, value, detail, icon: Icon }: { label: string; value: string; detail: string; icon: typeof CalendarClock }) {

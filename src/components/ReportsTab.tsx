@@ -1,9 +1,9 @@
-import { Clipboard, Download, FileJson, FileSpreadsheet, FileText, Printer, ShieldCheck } from "lucide-react";
+import { Clipboard, Download, FileJson, FileText, Printer, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { appConfig } from "../appConfig";
 import type { PredictionResult, Recommendation, Scenario } from "../logic/types";
 import {
   buildDataQuality,
-  generateReportCsv,
   generateReportText,
   reportTypes,
   type ReportType,
@@ -22,7 +22,6 @@ export default function ReportsTab({ scenario, prediction, recommendation, strat
   const [copied, setCopied] = useState(false);
   const quality = useMemo(() => buildDataQuality(scenario, prediction), [scenario, prediction]);
   const reportText = useMemo(() => generateReportText(selectedType, scenario, prediction, recommendation, quality, strategy), [selectedType, scenario, prediction, recommendation, quality, strategy]);
-  const csv = useMemo(() => generateReportCsv(selectedType, scenario, prediction), [selectedType, scenario, prediction]);
   const selectedLabel = reportTypes.find((type) => type.id === selectedType)?.label ?? "Sourcing Report";
 
   const copyText = async () => {
@@ -79,13 +78,13 @@ export default function ReportsTab({ scenario, prediction, recommendation, strat
                 <Clipboard size={16} />
                 {copied ? "Copied" : "Copy Text"}
               </button>
-              <button className="btn" type="button" onClick={() => download(`${selectedType}.json`, JSON.stringify({ type: selectedType, generatedAt: new Date().toISOString(), report: reportText, scenario }, null, 2), "application/json")}>
+              <button className="btn" type="button" onClick={() => download(`${appConfig.exportFilePrefix}-${selectedType}.md`, reportText, "text/markdown;charset=utf-8")}>
+                <Download size={16} />
+                Markdown
+              </button>
+              <button className="btn" type="button" onClick={() => download(`${appConfig.exportFilePrefix}-${selectedType}.json`, JSON.stringify({ type: selectedType, generatedAt: new Date().toISOString(), report: reportText, scenario }, null, 2), "application/json")}>
                 <FileJson size={16} />
                 JSON
-              </button>
-              <button className="btn" type="button" onClick={() => download(`${selectedType}.csv`, csv, "text/csv;charset=utf-8")}>
-                <FileSpreadsheet size={16} />
-                CSV
               </button>
               <button className="btn btn-primary" type="button" onClick={printReport}>
                 <Printer size={16} />

@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { useState } from "react";
 import NumberInput from "./NumberInput";
 
 interface FormFieldProps {
@@ -28,10 +29,12 @@ export default function FormField({
   max,
   onChange,
 }: FormFieldProps) {
+  const [touched, setTouched] = useState(false);
   const invalid =
     type === "number" &&
     value !== "" &&
     ((typeof min === "number" && Number(value) < min) || (typeof max === "number" && Number(value) > max));
+  const showInvalid = touched && invalid;
 
   return (
     <label className="grid gap-1" htmlFor={id}>
@@ -47,6 +50,7 @@ export default function FormField({
             className="min-h-20 min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-slate-100 outline-none"
             placeholder={placeholder}
             value={value}
+            onBlur={() => setTouched(true)}
             onChange={(event) => onChange(event.target.value)}
           />
         ) : type === "number" ? (
@@ -58,6 +62,7 @@ export default function FormField({
             placeholder={placeholder}
             value={typeof value === "number" ? value : Number(value)}
             onChange={(nextValue) => onChange(String(nextValue))}
+            onBlur={() => setTouched(true)}
           />
         ) : (
           <input
@@ -68,12 +73,13 @@ export default function FormField({
             max={max}
             placeholder={placeholder}
             value={value}
+            onBlur={() => setTouched(true)}
             onChange={(event) => onChange(event.target.value)}
           />
         )}
         {unit && <span className="flex min-w-20 items-center justify-center border-l border-cyan-200/10 px-2 text-[0.68rem] text-cyan-100/45">{unit}</span>}
       </div>
-      {(invalid || validation) && <span className={invalid ? "text-[0.68rem] text-risk" : "text-[0.68rem] text-cyan-100/36"}>{validation}</span>}
+      {showInvalid && validation && <span className="text-[0.68rem] text-risk">{validation}</span>}
     </label>
   );
 }

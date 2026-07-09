@@ -1,4 +1,5 @@
-import { applyAllocation, buildRecommendedAllocation } from "./optimizationEngine";
+import { appConfig } from "../appConfig";
+import { buildComparisonRows } from "./optimizationEngine";
 import { calculatePrediction } from "./predictionEngine";
 import type { OptimizationGoal, PredictionResult, Recommendation, Scenario, ScenarioComparisonRow, WeightSettings } from "./types";
 
@@ -17,8 +18,6 @@ export type SourcingStrategy =
 export type ReportType =
   | "decision-memo"
   | "supplier-comparison"
-  | "rfq-template"
-  | "supplier-scorecard"
   | "landed-cost"
   | "risk-mitigation"
   | "negotiation-plan"
@@ -130,8 +129,6 @@ export const suggestedCopilotQuestions = [
 export const reportTypes: Array<{ id: ReportType; label: string }> = [
   { id: "decision-memo", label: "Sourcing Decision Memo" },
   { id: "supplier-comparison", label: "Supplier Comparison Report" },
-  { id: "rfq-template", label: "RFQ Template" },
-  { id: "supplier-scorecard", label: "Supplier Scorecard" },
   { id: "landed-cost", label: "Landed Cost Breakdown" },
   { id: "risk-mitigation", label: "Risk Mitigation Plan" },
   { id: "negotiation-plan", label: "Negotiation Plan" },
@@ -278,18 +275,16 @@ export const buildWorkflowStages = (scenario: Scenario, prediction: PredictionRe
   const hasProductDetails = Boolean(intake.productCategory || scenario.productDetails.name || scenario.productDetails.category || scenario.productDetails.specification || scenario.suppliers.some((supplier) => supplier.productCategory));
 
   return [
-    { id: "business-need", title: "Define Business Need", status: stageStatus(Boolean(intake.productCategory || scenario.budget.monthlyDemand || scenario.name !== "Blank Sourcing Network")), requiredInputs: ["Product Category", "Monthly Demand", "Business Priority"], missingInputs: [!intake.productCategory && !scenario.productDetails.category ? "Product Category" : "", !prediction.totalDemand ? "Monthly Demand" : ""].filter(Boolean), whyItMatters: "The model needs to know what decision it is supporting before cost, risk, and service tradeoffs can be interpreted.", nextBestAction: intake.productCategory ? "Add demand hubs for the business need." : "Complete the sourcing intake wizard.", actionLabel: "Open Intake Wizard", action: "intake" },
-    { id: "product-spec", title: "Define Product Specification", status: stageStatus(hasProductDetails), requiredInputs: ["Product Category", "Specification Notes", "Supplier Category"], missingInputs: hasProductDetails ? [] : ["Product Specification"], whyItMatters: "Supplier comparisons are only meaningful when they are tied to the same product and specification.", nextBestAction: "Capture product details or supplier product categories.", actionLabel: "Open Product Details", action: "product" },
-    { id: "demand", title: "Add Demand Hubs and Customers", status: stageStatus(scenario.demandHubs.length > 0 && prediction.totalDemand > 0, scenario.demandHubs.some((hub) => !(hub.monthlyDemand || hub.forecastDemand))), requiredInputs: ["Demand Hub Names", "Countries or Regions", "Monthly Demand"], missingInputs: scenario.demandHubs.length ? scenario.demandHubs.filter((hub) => !(hub.monthlyDemand || hub.forecastDemand)).map((hub) => `${hub.name || "Demand Hub"} Demand Volume`) : ["Demand Hubs"], whyItMatters: "Demand hubs tell the model where volume must be served and how route allocations should be evaluated.", nextBestAction: "Add a demand hub with monthly demand.", actionLabel: "Add Demand Hub", action: "demand" },
-    { id: "suppliers", title: "Add Suppliers", status: stageStatus(scenario.suppliers.length > 0, scenario.suppliers.some((supplier) => !supplier.productCategory)), requiredInputs: ["Supplier Name", "Country or Region", "Product Category"], missingInputs: scenario.suppliers.length ? scenario.suppliers.filter((supplier) => !supplier.productCategory).map((supplier) => `${supplier.name || "Supplier"} Product Category`) : ["Suppliers"], whyItMatters: "Suppliers are the options being compared for landed cost, lead time, risk, ESG, and capacity.", nextBestAction: "Add at least one supplier.", actionLabel: "Add Supplier", action: "supplier" },
-    { id: "routes", title: "Create Supplier-to-Demand Routes", status: stageStatus(activeRoutes.length > 0, activeRoutes.some((route) => route.allocationPct <= 0)), requiredInputs: ["Supplier", "Demand Hub", "Transport Mode", "Allocation"], missingInputs: activeRoutes.length ? activeRoutes.filter((route) => route.allocationPct <= 0).map((route) => `${route.originLabel || "Route"} Allocation`) : ["Active Routes"], whyItMatters: "Routes connect supply to demand and let the model calculate lane cost, lead time, emissions, and disruption exposure.", nextBestAction: "Create a route between a supplier and demand hub.", actionLabel: "Create Route", action: "route" },
-    { id: "costs", title: "Add Cost Assumptions", status: stageStatus(hasCost, scenario.suppliers.some((supplier) => supplier.baseUnitCost <= 0) || activeRoutes.some((route) => route.freightCost <= 0)), requiredInputs: ["Supplier Unit Cost", "Freight Cost", "Tariffs or Insurance If Known"], missingInputs: quality.checks.filter((check) => ["unit-cost", "freight"].includes(check.key) && !check.complete).map((check) => check.label), whyItMatters: "Cost assumptions turn the supplier network into a landed-cost prediction.", nextBestAction: "Add supplier unit costs and route freight costs.", actionLabel: "Open Data Input", action: "data" },
-    { id: "constraints", title: "Add Budget and Capacity Constraints", status: stageStatus(hasBudget && scenario.suppliers.every((supplier) => supplier.capacity > 0), !hasBudget), requiredInputs: ["Supplier Capacity", "Budget or Guardrails", "Service Target If Known"], missingInputs: quality.checks.filter((check) => ["capacity", "budget"].includes(check.key) && !check.complete).map((check) => check.label), whyItMatters: "Constraints determine whether a recommendation is feasible enough to approve.", nextBestAction: "Enter budget, capacity, lead-time, service, or allocation guardrails.", actionLabel: "Open Data Input", action: "data" },
-    { id: "risk", title: "Add Risk Events and Regional Risk Profiles", status: stageStatus(hasRisk), requiredInputs: ["Risk Events", "Regional Risk Profiles", "Supplier Risk Scores"], missingInputs: hasRisk ? [] : ["Risk Assumptions"], whyItMatters: "Risk inputs reveal fragile regions, lanes, suppliers, and mitigation needs.", nextBestAction: "Add risk events or regional risk profiles.", actionLabel: "Add Risk", action: "risk" },
-    { id: "levers", title: "Apply Negotiation Levers", status: stageStatus(scenario.levers.length > 0, scenario.levers.length > 0 && !scenario.levers.some((lever) => lever.active)), requiredInputs: ["Commercial or Operational Lever", "Expected Impact", "Active Toggle"], missingInputs: scenario.levers.length ? [] : ["Negotiation Levers"], whyItMatters: "Levers show how sourcing actions can improve cost, service, risk, and resilience.", nextBestAction: "Add a negotiation lever such as price concession, buffer stock, or contract flexibility.", actionLabel: "Add Lever", action: "lever" },
-    { id: "scenarios", title: "Compare Scenarios", status: stageStatus(hasComparison), requiredInputs: ["Complete Network", "Selected Strategy", "Forecast Assumptions"], missingInputs: hasComparison ? [] : ["Complete Supplier-Demand-Route Network"], whyItMatters: "Scenario comparison shows the cost, risk, lead-time, ESG, and resilience tradeoffs before approval.", nextBestAction: "Review Forecast & Scenarios after core data is complete.", actionLabel: "Compare Scenarios", action: "forecast" },
-    { id: "recommendation", title: "Generate Recommendation", status: stageStatus(prediction.confidenceScore >= 60 && activeRoutes.length > 0), requiredInputs: ["Prediction Confidence", "Strategy", "Tradeoff Explanation"], missingInputs: prediction.confidenceScore >= 60 ? [] : prediction.missingDataFields.slice(0, 4), whyItMatters: "A recommendation turns the analysis into an approve, revise, or reject decision.", nextBestAction: "Generate recommendation after data quality improves.", actionLabel: "Open Recommendations", action: "recommendations" },
-    { id: "report", title: "Export Sourcing Decision Report", status: stageStatus(quality.reliable), requiredInputs: ["Recommendation", "Risk Summary", "Missing Assumptions", "Decision Memo"], missingInputs: quality.reliable ? [] : ["Reliable Data Quality Score"], whyItMatters: "Reports convert the model output into sourcing deliverables for stakeholders, RFQs, and approval.", nextBestAction: "Generate a decision memo or executive summary.", actionLabel: "Open Reports", action: "reports" },
+    { id: "business-need", title: "Define Product/Business Need", status: stageStatus(hasProductDetails), requiredInputs: ["Product Name", "Product Category", "Business Priority"], missingInputs: hasProductDetails ? [] : ["Product Details"], whyItMatters: "The model needs to know what decision it is supporting before cost, risk, service, ESG, and resilience tradeoffs can be interpreted.", nextBestAction: hasProductDetails ? "Add demand hubs for this product." : "Define the product or business need.", actionLabel: "Open Product Details", action: "product" },
+    { id: "demand", title: "Add Demand Hubs", status: stageStatus(scenario.demandHubs.length > 0 && prediction.totalDemand > 0, scenario.demandHubs.some((hub) => !(hub.monthlyDemand || hub.forecastDemand))), requiredInputs: ["Demand Hub", "Country or Region", "Monthly Demand"], missingInputs: scenario.demandHubs.length ? scenario.demandHubs.filter((hub) => !(hub.monthlyDemand || hub.forecastDemand)).map((hub) => `${hub.name || "Demand Hub"} Demand`) : ["Demand Hubs"], whyItMatters: "Demand hubs tell the model where volume must be served and how lane allocations should be evaluated.", nextBestAction: "Add a demand hub with monthly demand.", actionLabel: "Add Demand Hub", action: "demand" },
+    { id: "suppliers", title: "Add Suppliers", status: stageStatus(scenario.suppliers.length > 0, scenario.suppliers.some((supplier) => !supplier.country || !supplier.productCategory)), requiredInputs: ["Supplier Name", "Country or Region", "Product Category"], missingInputs: scenario.suppliers.length ? scenario.suppliers.filter((supplier) => !supplier.country || !supplier.productCategory).map((supplier) => `${supplier.name || "Supplier"} Profile`) : ["Suppliers"], whyItMatters: "Suppliers are the options being compared for landed cost, lead time, reliability, ESG, risk, and capacity.", nextBestAction: "Add at least one supplier.", actionLabel: "Add Supplier", action: "supplier" },
+    { id: "routes", title: "Create Routes", status: stageStatus(activeRoutes.length > 0, activeRoutes.some((route) => route.allocationPct <= 0 || route.transitTime <= 0)), requiredInputs: ["Supplier", "Demand Hub", "Transport Mode", "Allocation"], missingInputs: activeRoutes.length ? activeRoutes.filter((route) => route.allocationPct <= 0 || route.transitTime <= 0).map((route) => `${route.originLabel || "Route"} Lane Inputs`) : ["Active Routes"], whyItMatters: "Routes connect supply to demand and drive lane cost, transit time, emissions, customs risk, and disruption exposure.", nextBestAction: "Create a route between a supplier and demand hub.", actionLabel: "Create Route", action: "route" },
+    { id: "costs", title: "Enter Cost Assumptions", status: stageStatus(hasCost, scenario.suppliers.some((supplier) => supplier.baseUnitCost <= 0) || activeRoutes.some((route) => route.freightCost <= 0)), requiredInputs: ["Supplier Unit Cost", "Freight Cost", "Tariffs", "Insurance"], missingInputs: quality.checks.filter((check) => ["unit-cost", "freight"].includes(check.key) && !check.complete).map((check) => check.label), whyItMatters: "Cost assumptions turn the network into a believable landed-cost and total-spend prediction.", nextBestAction: "Enter supplier unit costs and route freight costs.", actionLabel: "Open Data Input", action: "data" },
+    { id: "constraints", title: "Add Budget/Capacity Constraints", status: stageStatus(hasBudget && scenario.suppliers.every((supplier) => supplier.capacity > 0), !hasBudget || scenario.suppliers.some((supplier) => supplier.capacity <= 0)), requiredInputs: ["Supplier Capacity", "Budget", "Service Target", "Allocation Cap"], missingInputs: quality.checks.filter((check) => ["capacity", "budget"].includes(check.key) && !check.complete).map((check) => check.label), whyItMatters: "Constraints determine whether the recommendation is feasible enough to approve.", nextBestAction: "Enter budget, capacity, lead-time, service, or allocation guardrails.", actionLabel: "Open Data Input", action: "data" },
+    { id: "risk", title: "Add Risks", status: stageStatus(hasRisk), requiredInputs: ["Risk Events", "Regional Profiles", "Supplier Risk Scores"], missingInputs: hasRisk ? [] : ["Risk Assumptions"], whyItMatters: "Risk inputs reveal fragile suppliers, regions, lanes, impacts, and mitigation needs.", nextBestAction: "Add a risk event or regional risk profile.", actionLabel: "Add Risk", action: "risk" },
+    { id: "scenarios", title: "Compare Scenarios", status: stageStatus(hasComparison), requiredInputs: ["Complete Network", "Forecast Assumptions", "Optimization Goal"], missingInputs: hasComparison ? [] : ["Complete Supplier-Demand-Route Network"], whyItMatters: "Scenario comparison shows cost, risk, lead-time, ESG, service, and resilience tradeoffs before approval.", nextBestAction: "Review the seven scenario plans.", actionLabel: "Compare Scenarios", action: "forecast" },
+    { id: "recommendation", title: "Generate Recommendation", status: stageStatus(prediction.confidenceScore >= 60 && activeRoutes.length > 0), requiredInputs: ["Prediction Confidence", "Scenario Comparison", "Tradeoff Explanation"], missingInputs: prediction.confidenceScore >= 60 ? [] : prediction.missingDataFields.slice(0, 4), whyItMatters: "A recommendation turns analysis into an approve, revise, or reject decision.", nextBestAction: "Generate recommendation after core data quality improves.", actionLabel: "Open Recommendations", action: "recommendations" },
+    { id: "report", title: "Export Report", status: stageStatus(quality.reliable), requiredInputs: ["Recommendation", "Risk Summary", "Missing Data", "Decision Memo"], missingInputs: quality.reliable ? [] : ["Reliable Data Quality Score"], whyItMatters: "Reports convert the model output into sourcing deliverables for stakeholders and approval.", nextBestAction: "Export a decision memo, executive summary, or scenario report.", actionLabel: "Open Reports", action: "reports" },
   ];
 };
 
@@ -353,35 +348,7 @@ export const answerCopilotQuestion = (question: string, scenario: Scenario, pred
   return "Ask about next steps, missing data, supplier risk, route risk, landed cost, service level, resilience, negotiation, plan weakness, or a recommendation summary.";
 };
 
-const rowFromScenario = (name: string, scenario: Scenario): ScenarioComparisonRow => {
-  const result = calculatePrediction(scenario);
-  return {
-    name,
-    totalCost: result.totalScenarioCost,
-    avgLandedCost: result.avgLandedCost,
-    avgLeadTime: result.avgLeadTime,
-    riskScore: result.weightedRisk,
-    serviceLevel: result.serviceLevel,
-    esg: result.esgAverage,
-    resilience: result.resilienceScore,
-    capacityUtilization: result.capacityUtilization,
-  };
-};
-
-export const buildStrategyComparisonRows = (scenario: Scenario, strategy: SourcingStrategy): ScenarioComparisonRow[] => {
-  const selected = applyStrategyToScenario(scenario, strategy);
-  const selectedPlan = applyAllocation(selected, buildRecommendedAllocation(selected, selected.optimizationGoal));
-  const costPlan = applyAllocation(applyStrategyToScenario(scenario, "lowest-cost"), buildRecommendedAllocation(scenario, "Lowest cost"));
-  const riskPlan = applyAllocation(applyStrategyToScenario(scenario, "risk-first"), buildRecommendedAllocation(scenario, "Lowest risk"));
-  const speedPlan = applyAllocation(applyStrategyToScenario(scenario, "fastest-delivery"), buildRecommendedAllocation(scenario, "Fastest lead time"));
-  return [
-    rowFromScenario("Current plan", scenario),
-    rowFromScenario(`${getStrategyConfig(strategy).label} plan`, selectedPlan),
-    rowFromScenario("Lowest cost plan", costPlan),
-    rowFromScenario("Lowest risk plan", riskPlan),
-    rowFromScenario("Fastest delivery plan", speedPlan),
-  ];
-};
+export const buildStrategyComparisonRows = (scenario: Scenario, _strategy: SourcingStrategy): ScenarioComparisonRow[] => buildComparisonRows(scenario);
 
 export const generateReportText = (type: ReportType, scenario: Scenario, prediction: PredictionResult, recommendation: Recommendation, quality: DataQualityScore, strategy: SourcingStrategy) => {
   const explanation = buildRecommendationExplanation(scenario, prediction, recommendation, strategy);
@@ -401,16 +368,12 @@ export const generateReportText = (type: ReportType, scenario: Scenario, predict
     .slice(0, type === "risk-mitigation" ? riskMitigationPlaybook.length : 4)
     .map((item) => `- ${item.category}: ${item.mitigations.join("; ")}`)
     .join("\n");
-  const rfqSection =
-    type === "rfq-template"
-      ? "\nRFQ fields:\n- Supplier legal name\n- Manufacturing location\n- Unit price by volume tier\n- MOQ and capacity reservation\n- Standard lead time and expedite lead time\n- Incoterms and freight assumptions\n- Quality certifications\n- ESG disclosures\n- Risk continuity plan\n"
-      : "";
   const negotiationSection =
     type === "negotiation-plan"
       ? `\nNegotiation plan:\n- Primary ask: ${recommendation.bestLever}\n- Secondary asks: capacity reservation, freight transparency, service-level commitment, and disruption recovery clause.\n- Evidence: tie ask to cost, lead time, risk, service, and resilience metrics.\n`
       : "";
 
-  return `${title}
+  return `${appConfig.appName} - ${title}
 
 Objective
 ${scenario.name}: support a ${getStrategyConfig(strategy).label.toLowerCase()} decision using the current sourcing data.
@@ -446,7 +409,7 @@ ${explanation.biggestTradeoff}
 
 Risk Mitigation Playbook
 ${playbookText}
-${rfqSection}${negotiationSection}
+${negotiationSection}
 Missing Data and Assumptions
 ${quality.missingFields.length ? quality.missingFields.map((field) => `- ${field}`).join("\n") : "- No critical missing fields detected."}
 
@@ -455,7 +418,7 @@ ${recommendation.finalDecision.toUpperCase()}`;
 };
 
 export const generateReportCsv = (type: ReportType, scenario: Scenario, prediction: PredictionResult) => {
-  if (["supplier-comparison", "supplier-scorecard", "landed-cost"].includes(type)) {
+  if (["supplier-comparison", "landed-cost"].includes(type)) {
     const rows = [["Supplier", "Country", "Base Unit Cost", "Capacity", "Lead Time", "Reliability", "Risk Score", "ESG Score"]];
     scenario.suppliers.forEach((supplier) => {
       const result = prediction.suppliers.find((item) => item.supplierId === supplier.id);

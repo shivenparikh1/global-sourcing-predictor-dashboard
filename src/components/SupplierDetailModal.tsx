@@ -74,16 +74,42 @@ const numberFields: Array<{
   },
 ];
 
+const supplierSteps = ["Supplier Profile", "Cost & Logistics", "Capacity & Performance", "Risk & Sustainability"];
+const costFields: Array<keyof Supplier> = ["baseUnitCost", "tariffRate", "freightCost", "insuranceRate", "leadTime"];
+const performanceFields: Array<keyof Supplier> = ["reliability", "capacity", "moq", "qualityScore", "allocation"];
+const riskFields: Array<keyof Supplier> = ["esgScore", "politicalRisk", "currencyRisk", "naturalDisasterRisk", "financialHealth"];
+
 export default function SupplierDetailModal({ supplier, isNew, onClose, onSave, onDelete }: SupplierDetailModalProps) {
   const [draft, setDraft] = useState<Supplier | null>(supplier);
+  const [step, setStep] = useState(0);
 
-  useEffect(() => setDraft(supplier), [supplier]);
+  useEffect(() => {
+    setDraft(supplier);
+    setStep(0);
+  }, [supplier]);
 
   if (!draft) return null;
 
   const mode = draft.transportMode;
   const profile = draft.transportOverrides[mode];
   const update = <K extends keyof Supplier>(key: K, value: Supplier[K]) => setDraft({ ...draft, [key]: value });
+  const renderNumberField = (key: keyof Supplier) => {
+    const field = numberFields.find((item) => item.key === key);
+    if (!field) return null;
+    const { help, min, max } = field;
+    return (
+      <FormField
+        key={key}
+        id={`supplier-${String(key)}`}
+        type="number"
+        min={min}
+        max={max}
+        {...help}
+        value={draft[key] as number}
+        onChange={(value) => update(key, Number(value) as never)}
+      />
+    );
+  };
   const updateProfile = (key: keyof typeof profile, value: number | TransportMode) => {
     setDraft({
       ...draft,
@@ -107,10 +133,27 @@ export default function SupplierDetailModal({ supplier, isNew, onClose, onSave, 
           </button>
         </div>
 
-        <div className="grid gap-4 p-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="panel-soft p-4">
-            <h3 className="mb-3 text-sm font-semibold text-white">Supplier Profile</h3>
-            <div className="grid gap-3 md:grid-cols-2">
+        <div className="border-b border-cyan-200/10 px-4 py-3">
+          <div className="grid gap-2 md:grid-cols-4">
+            {supplierSteps.map((label, index) => (
+              <button
+                key={label}
+                className={`rounded-md border px-3 py-2 text-left text-xs font-semibold transition ${step === index ? "border-cyanline/45 bg-cyanline/15 text-white shadow-glow" : "border-cyan-200/10 bg-ink-950/45 text-cyan-100/55 hover:border-cyanline/30 hover:text-white"}`}
+                type="button"
+                onClick={() => setStep(index)}
+              >
+                <span className="block text-[0.65rem] text-cyan-100/40">Step {index + 1}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-4">
+          {step === 0 && (
+            <section className="panel-soft p-4">
+              <h3 className="mb-3 text-sm font-semibold text-white">Supplier Profile</h3>
+              <div className="grid gap-3 md:grid-cols-2">
               <FormField id="supplier-name" {...fieldHelp.supplierName} value={draft.name} onChange={(name) => update("name", name)} />
               <SearchableSelect
                 label={fieldHelp.country.label}
@@ -146,57 +189,61 @@ export default function SupplierDetailModal({ supplier, isNew, onClose, onSave, 
                   ))}
                 </select>
               </label>
-              {numberFields.map(({ key, help, min, max }) => (
-                <FormField
-                  key={key}
-                  id={`supplier-${String(key)}`}
-                  type="number"
-                  min={min}
-                  max={max}
-                  {...help}
-                  value={draft[key] as number}
-                  onChange={(value) => update(key, Number(value) as never)}
-                />
-              ))}
               <div className="md:col-span-2">
                 <FormField id="supplier-notes" type="textarea" label="Notes" helper="Optional sourcing context, constraints, certifications, or follow-up items." placeholder="Example: Requires PPAP audit before award" validation="Optional." value={draft.notes} onChange={(notes) => update("notes", notes)} />
               </div>
-            </div>
-          </section>
-
-          <section className="panel-soft p-4">
-            <h3 className="mb-3 text-sm font-semibold text-white">Transport Mode Editor</h3>
-            <div className="grid gap-3">
-              <TransportField label="Freight Cost per Unit" value={profile.freightCost} unit="USD" onChange={(value) => updateProfile("freightCost", value)} />
-              <TransportField label="Transit Time" value={profile.transitTime} unit="days" onChange={(value) => updateProfile("transitTime", value)} />
-              <TransportField label="Delay Probability" value={profile.delayProbability} unit="%" onChange={(value) => updateProfile("delayProbability", value)} />
-              <TransportField label="Emissions Factor" value={profile.emissionsFactor} unit="kg/unit" onChange={(value) => updateProfile("emissionsFactor", value)} />
-              <TransportField label="Port Congestion Risk" value={profile.congestionRisk} unit="score" onChange={(value) => updateProfile("congestionRisk", value)} />
-            </div>
-            <div className="mt-4 grid gap-2 rounded-lg border border-cyan-200/10 bg-ink-950/50 p-3 text-xs text-cyan-100/70">
-              <span>Map Coordinates</span>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="grid gap-1">
-                  <span className="text-[0.68rem] text-cyan-100/50">Latitude</span>
-                  <NumberInput
-                    className="input"
-                    step="0.001"
-                    value={displayLat(draft.coordinates)}
-                    onChange={(value) => update("coordinates", updateLat(draft.coordinates, value))}
-                  />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-[0.68rem] text-cyan-100/50">Longitude</span>
-                  <NumberInput
-                    className="input"
-                    step="0.001"
-                    value={displayLng(draft.coordinates)}
-                    onChange={(value) => update("coordinates", updateLng(draft.coordinates, value))}
-                  />
-                </label>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
+
+          {step === 1 && (
+            <section className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
+              <div className="panel-soft p-4">
+                <h3 className="mb-3 text-sm font-semibold text-white">Cost & Logistics</h3>
+                <div className="grid gap-3 md:grid-cols-2">{costFields.map(renderNumberField)}</div>
+              </div>
+              <div className="panel-soft p-4">
+                <h3 className="mb-3 text-sm font-semibold text-white">Transport Mode Editor</h3>
+                <div className="grid gap-3">
+                  <TransportField label="Freight Cost per Unit" value={profile.freightCost} unit="USD" onChange={(value) => updateProfile("freightCost", value)} />
+                  <TransportField label="Transit Time" value={profile.transitTime} unit="days" onChange={(value) => updateProfile("transitTime", value)} />
+                  <TransportField label="Delay Probability" value={profile.delayProbability} unit="%" onChange={(value) => updateProfile("delayProbability", value)} />
+                  <TransportField label="Emissions Factor" value={profile.emissionsFactor} unit="kg/unit" onChange={(value) => updateProfile("emissionsFactor", value)} />
+                  <TransportField label="Port Congestion Risk" value={profile.congestionRisk} unit="score" onChange={(value) => updateProfile("congestionRisk", value)} />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {step === 2 && (
+            <section className="panel-soft p-4">
+              <h3 className="mb-3 text-sm font-semibold text-white">Capacity & Performance</h3>
+              <div className="grid gap-3 md:grid-cols-2">{performanceFields.map(renderNumberField)}</div>
+            </section>
+          )}
+
+          {step === 3 && (
+            <section className="panel-soft p-4">
+              <h3 className="mb-3 text-sm font-semibold text-white">Risk & Sustainability</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {riskFields.map(renderNumberField)}
+                <div className="rounded-lg border border-cyan-200/10 bg-ink-950/45 p-3 md:col-span-2">
+                  <p className="text-xs font-semibold text-cyan-100/75">Map Coordinates</p>
+                  <p className="mt-1 text-[0.7rem] text-cyan-100/48">Prefilled from map placement. Adjust if you know the exact location.</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <label className="grid gap-1">
+                      <span className="text-[0.68rem] text-cyan-100/50">Latitude</span>
+                      <NumberInput className="input" step="0.001" value={displayLat(draft.coordinates)} onChange={(value) => update("coordinates", updateLat(draft.coordinates, value))} />
+                    </label>
+                    <label className="grid gap-1">
+                      <span className="text-[0.68rem] text-cyan-100/50">Longitude</span>
+                      <NumberInput className="input" step="0.001" value={displayLng(draft.coordinates)} onChange={(value) => update("coordinates", updateLng(draft.coordinates, value))} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
 
         <div className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t border-cyan-200/10 bg-ink-900/95 p-4 backdrop-blur-xl">

@@ -82,13 +82,26 @@ export const predictSupplier = (scenario: Scenario, supplier: Supplier): Supplie
     { units: 0, freightCost: 0, transitTime: 0, delayProbability: 0, congestionRisk: 0, customsRisk: 0, emissionsFactor: 0 },
   );
   const routeFactor = Math.max(1, routeWeighted.units);
+  const routeAverage = routes.length
+    ? routes.reduce(
+        (acc, route) => ({
+          freightCost: acc.freightCost + route.freightCost,
+          transitTime: acc.transitTime + route.transitTime,
+          delayProbability: acc.delayProbability + route.delayProbability,
+          congestionRisk: acc.congestionRisk + route.portCongestionRisk,
+          customsRisk: acc.customsRisk + route.customsRisk,
+          emissionsFactor: acc.emissionsFactor + route.emissionsFactor,
+        }),
+        { freightCost: 0, transitTime: 0, delayProbability: 0, congestionRisk: 0, customsRisk: 0, emissionsFactor: 0 },
+      )
+    : null;
   const routeProfile = {
-    freightCost: routeWeighted.units ? routeWeighted.freightCost / routeFactor : modeProfile.freightCost || supplier.freightCost,
-    transitTime: routeWeighted.units ? routeWeighted.transitTime / routeFactor : modeProfile.transitTime,
-    delayProbability: routeWeighted.units ? routeWeighted.delayProbability / routeFactor : modeProfile.delayProbability,
-    congestionRisk: routeWeighted.units ? routeWeighted.congestionRisk / routeFactor : modeProfile.congestionRisk,
-    customsRisk: routeWeighted.units ? routeWeighted.customsRisk / routeFactor : 0,
-    emissionsFactor: routeWeighted.units ? routeWeighted.emissionsFactor / routeFactor : modeProfile.emissionsFactor,
+    freightCost: routeWeighted.units ? routeWeighted.freightCost / routeFactor : routeAverage ? routeAverage.freightCost / routes.length : modeProfile.freightCost || supplier.freightCost,
+    transitTime: routeWeighted.units ? routeWeighted.transitTime / routeFactor : routeAverage ? routeAverage.transitTime / routes.length : modeProfile.transitTime,
+    delayProbability: routeWeighted.units ? routeWeighted.delayProbability / routeFactor : routeAverage ? routeAverage.delayProbability / routes.length : modeProfile.delayProbability,
+    congestionRisk: routeWeighted.units ? routeWeighted.congestionRisk / routeFactor : routeAverage ? routeAverage.congestionRisk / routes.length : modeProfile.congestionRisk,
+    customsRisk: routeWeighted.units ? routeWeighted.customsRisk / routeFactor : routeAverage ? routeAverage.customsRisk / routes.length : 0,
+    emissionsFactor: routeWeighted.units ? routeWeighted.emissionsFactor / routeFactor : routeAverage ? routeAverage.emissionsFactor / routes.length : modeProfile.emissionsFactor,
   };
   const risks = getSupplierRiskEvents(scenario, supplier, mode);
   const leverEffects = activeLeverEffects(scenario);
