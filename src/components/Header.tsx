@@ -38,8 +38,6 @@ export default function Header({
     <header className="panel flex flex-col gap-2 px-3 py-2 2xl:flex-row 2xl:items-center 2xl:justify-between">
       <div className="min-w-0 pr-2">
         <h1 className="truncate text-lg font-semibold leading-6 text-white">{appConfig.appName}</h1>
-        <p className="truncate text-[0.7rem] font-medium uppercase tracking-[0.12em] text-slate-400">{appConfig.appSubtitle}</p>
-        <p className="truncate text-[0.68rem] text-cyan-100/45">{appConfig.primaryUseCase}</p>
       </div>
 
       <div className="flex w-full flex-wrap items-end gap-2 2xl:w-auto 2xl:justify-end">
