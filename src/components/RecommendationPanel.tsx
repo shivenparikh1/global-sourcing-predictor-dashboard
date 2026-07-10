@@ -18,6 +18,7 @@ const decisionClass = (decision: Recommendation["finalDecision"]) => {
 export default function RecommendationPanel({ recommendation, generatedAt, onGenerate, onApply }: RecommendationPanelProps) {
   const [memoOpen, setMemoOpen] = useState(false);
   const missing = recommendation.missingData.slice(0, 4);
+  const canApplyPlan = Object.values(recommendation.supplierMix).some((value) => value > 0);
   return (
     <section className="panel-soft flex h-full flex-col p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -63,9 +64,16 @@ export default function RecommendationPanel({ recommendation, generatedAt, onGen
             <Wand2 size={16} />
             Generate Recommendation
           </button>
-          <button className="btn btn-primary" type="button" onClick={onApply} data-testid="apply-recommendation">
+          <button
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-45"
+            type="button"
+            onClick={onApply}
+            disabled={!canApplyPlan}
+            title={canApplyPlan ? "Apply recommended allocation" : "Complete supplier, demand, route, cost, capacity, and lead-time inputs before applying a plan."}
+            data-testid="apply-recommendation"
+          >
             <Send size={16} />
-            Apply Plan
+            {canApplyPlan ? "Apply Plan" : "Need Allocation Data"}
           </button>
         </div>
       </div>

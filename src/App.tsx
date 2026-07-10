@@ -517,6 +517,12 @@ export default function App() {
 
   const applyRecommendation = () => {
     const allocation = buildRecommendedAllocation(scenario, scenario.optimizationGoal);
+    const hasAllocation = Object.values(allocation).some((value) => value > 0);
+    if (!hasAllocation) {
+      window.alert("This recommendation is provisional. Fill supplier, demand, route, cost, capacity, and lead-time inputs before applying an allocation.");
+      setGeneratedAt(nowStamp());
+      return;
+    }
     updateScenario(applyAllocation(scenario, allocation), "Recommended allocation applied");
     setGeneratedAt(nowStamp());
   };

@@ -325,6 +325,7 @@ function BottomDecisionStrip({
   onApply: () => void;
 }) {
   const biggestRisk = recommendation.biggestRisk || "Network incomplete";
+  const canApplyPlan = Object.values(recommendation.supplierMix).some((value) => value > 0);
   return (
     <section className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-panel-in">
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -339,9 +340,16 @@ function BottomDecisionStrip({
           <Wand2 size={16} />
           Generate Recommendation
         </button>
-        <button className="btn btn-primary" type="button" onClick={onApply} data-testid="command-apply-plan">
+        <button
+          className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-45"
+          type="button"
+          onClick={onApply}
+          disabled={!canApplyPlan}
+          title={canApplyPlan ? "Apply recommended allocation" : "Complete supplier, demand, route, cost, capacity, and lead-time inputs before applying a plan."}
+          data-testid="command-apply-plan"
+        >
           <Send size={16} />
-          Apply Plan
+          {canApplyPlan ? "Apply Plan" : "Need Allocation Data"}
         </button>
       </div>
     </section>
