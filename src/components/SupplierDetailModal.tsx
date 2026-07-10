@@ -153,7 +153,7 @@ export default function SupplierDetailModal({ supplier, isNew, onClose, onSave, 
 
         <div className="p-4">
           <SmartAutofillBox
-            title="AI Autofill Supplier"
+            title="Autofill Supplier"
             placeholder="Example: Supplier: Monterrey Advanced Assembly, Mexico. Unit cost $58, capacity 14000 units, lead time 12 days, reliability 91%, tariff 2%, ESG 82, quality 89, transport mode land."
             onApply={(text) => setDraft(autofillSupplierFromText(draft, text))}
           />
