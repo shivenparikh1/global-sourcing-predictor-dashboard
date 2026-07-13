@@ -2,7 +2,6 @@ import { Download, RotateCcw, Save, Upload } from "lucide-react";
 import { useRef } from "react";
 import { appConfig } from "../appConfig";
 import type { Scenario } from "../logic/types";
-import { compactDateTime } from "./format";
 
 interface HeaderProps {
   scenario: Scenario;
@@ -116,10 +115,6 @@ export default function Header({
             event.currentTarget.value = "";
           }}
         />
-        <div className="min-w-32 pb-1 text-right text-[0.68rem] text-slate-500">
-          <div className="font-semibold uppercase tracking-[0.12em]">Last Updated</div>
-          <div className="font-medium text-slate-300">{compactDateTime(scenario.updatedAt)}</div>
-        </div>
       </div>
     </header>
   );
