@@ -42,7 +42,7 @@ export default function ScorecardPanel({ prediction, recommendation }: Scorecard
       positive: prediction.weightedRisk < 55,
     },
     {
-      label: "Service-Level Prediction",
+      label: "Service-Level Estimate",
       value: pct(prediction.serviceLevel),
       sub: "OTIF Confidence",
       icon: ShieldCheck,
@@ -50,7 +50,7 @@ export default function ScorecardPanel({ prediction, recommendation }: Scorecard
       positive: prediction.serviceLevel >= 92,
     },
     {
-      label: "Prediction Confidence",
+      label: "Data Confidence",
       value: pct(prediction.confidenceScore),
       sub: prediction.missingDataFields.length ? `${prediction.missingDataFields.length} Fields Missing` : "Required Fields Complete",
       icon: Gauge,
@@ -112,7 +112,7 @@ export default function ScorecardPanel({ prediction, recommendation }: Scorecard
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-white">Network Metrics</h2>
-          <p className="text-xs text-cyan-100/50">Live prediction output</p>
+          <p className="text-xs text-cyan-100/50">Live decision-model output</p>
         </div>
         <span className={`rounded-md border px-2 py-1 text-xs ${scoreColor(prediction.resilienceScore)} border-current/30 bg-current/10`}>
           {prediction.activeSupplierCount} active

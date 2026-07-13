@@ -75,7 +75,7 @@ export default function RiskEventModal({ risk, suppliers, demandHubs, isNew, onC
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cyan-200/10 bg-ink-900/95 p-4 backdrop-blur-xl">
           <div>
             <h2 className="text-lg font-semibold text-white">{isNew ? "Add Risk Event" : "Risk Event Details"}</h2>
-            <p className="text-sm text-cyan-100/50">Editable impact assumptions used by the prediction engine</p>
+            <p className="text-sm text-cyan-100/50">Editable impact assumptions used by the decision model</p>
           </div>
           <button className="btn px-2" type="button" onClick={onClose} title="Close">
             <X size={18} />

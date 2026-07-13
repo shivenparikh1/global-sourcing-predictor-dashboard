@@ -228,7 +228,7 @@ export default function DataInputTab({
       return (
         <EditableTable
           title="Country and Regional Risk Profiles"
-          description="Manual country and regional risk scores used by prediction and recommendations."
+          description="Manual country and regional risk scores used by scoring and recommendations."
           rows={filterRows(scenario.regionalRiskProfiles, (row) => `${row.country} ${row.region}`)}
           columns={["Country", "Region", "Political", "Currency", "Disaster", "Infrastructure"]}
           emptyTitle="No country or regional risk profiles added yet."

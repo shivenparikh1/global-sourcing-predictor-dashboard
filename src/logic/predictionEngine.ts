@@ -231,10 +231,10 @@ const buildWarnings = (scenario: Scenario, result: Omit<PredictionResult, "forec
   const warnings: string[] = [];
   const hasMinimumNetwork = scenario.suppliers.length > 0 && scenario.demandHubs.length > 0 && scenario.routes.some((route) => route.active);
   if (!hasMinimumNetwork) {
-    warnings.push("Predictions will appear once at least one supplier, one demand hub, and one active route are created.");
+    warnings.push("Model outputs will appear once at least one supplier, one demand hub, and one active route are created.");
   }
   if (hasMinimumNetwork && result.missingDataFields.length) {
-    warnings.push("Prediction incomplete: Add supplier cost, demand volume, route cost, and lead time to generate results.");
+    warnings.push("Model incomplete: Add supplier cost, demand volume, route cost, and lead time to generate results.");
     warnings.push(`Missing data reducing confidence: ${result.missingDataFields.slice(0, 5).join(", ")}.`);
   }
   scenario.demandHubs.forEach((hub) => {
@@ -245,7 +245,7 @@ const buildWarnings = (scenario: Scenario, result: Omit<PredictionResult, "forec
   if (result.totalDemand > result.totalAvailableCapacity) warnings.push("Demand exceeds available included supplier capacity.");
   if (scenario.budget.budget > 0 && result.totalScenarioCost > scenario.budget.budget) warnings.push("Projected scenario cost exceeds budget.");
   if (scenario.budget.maxAverageLeadTime > 0 && result.avgLeadTime > scenario.budget.maxAverageLeadTime) warnings.push("Average lead time exceeds the maximum target.");
-  if (scenario.budget.minServiceLevel > 0 && result.serviceLevel < scenario.budget.minServiceLevel) warnings.push("Predicted service level is below target.");
+  if (scenario.budget.minServiceLevel > 0 && result.serviceLevel < scenario.budget.minServiceLevel) warnings.push("Modeled service level is below target.");
   if (scenario.budget.minEsgScore > 0 && result.esgAverage < scenario.budget.minEsgScore) warnings.push("Weighted ESG score is below the minimum target.");
   const concentrated = result.suppliers.find((supplier) => scenario.budget.maxSupplierAllocation > 0 && supplier.allocationPct > scenario.budget.maxSupplierAllocation);
   if (concentrated) warnings.push(`${concentrated.supplierName} exceeds the maximum allocation threshold.`);

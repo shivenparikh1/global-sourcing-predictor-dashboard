@@ -14,13 +14,13 @@ export default function MetricsTab({ scenario, prediction }: { scenario: Scenari
     { label: "Average Lead Time", value: hasData ? `${prediction.avgLeadTime.toFixed(1)}d` : "Incomplete", icon: Route, status: "Weighted" },
     { label: "Weighted Supplier Risk", value: hasData ? prediction.weightedRisk.toFixed(1) : "No data", icon: Gauge, status: "0-100" },
     { label: "Risk-Adjusted Cost", value: hasData ? currency(prediction.riskAdjustedCost) : "Pending", icon: Activity, status: "Premium Included" },
-    { label: "Service-Level Prediction", value: hasData ? pct(prediction.serviceLevel) : "Pending", icon: ShieldCheck, status: "OTIF" },
+    { label: "Service-Level Estimate", value: hasData ? pct(prediction.serviceLevel) : "Pending", icon: ShieldCheck, status: "OTIF" },
     { label: "Demand Coverage", value: hasData ? pct(prediction.demandCoveragePct) : "Pending", icon: Target, status: "Served Demand" },
     { label: "Shortage Risk", value: hasData ? pct(prediction.shortageRisk) : "Pending", icon: TrendingUp, status: "Estimated" },
     { label: "Capacity Utilization", value: hasData ? pct(prediction.capacityUtilization * 100) : "Pending", icon: Boxes, status: "Included Suppliers" },
     { label: "ESG Weighted Average", value: hasData ? prediction.esgAverage.toFixed(0) : "Pending", icon: Leaf, status: "Score" },
     { label: "Network Resilience", value: hasData ? prediction.resilienceScore.toFixed(0) : "Incomplete", icon: Sparkles, status: "Strength" },
-    { label: "Prediction Confidence", value: pct(prediction.confidenceScore), icon: BarChart3, status: prediction.confidenceScore >= 90 ? "High" : prediction.confidenceScore >= 60 ? "Medium" : "Low" },
+    { label: "Data Confidence", value: pct(prediction.confidenceScore), icon: BarChart3, status: prediction.confidenceScore >= 90 ? "High" : prediction.confidenceScore >= 60 ? "Medium" : "Low" },
   ];
 
   return (

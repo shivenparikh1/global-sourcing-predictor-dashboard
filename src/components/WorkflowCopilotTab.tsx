@@ -125,7 +125,7 @@ export default function WorkflowCopilotTab({
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <QualityCard icon={Target} label="Data Quality" value={`${quality.score}%`} detail={quality.explanation} tone={quality.reliable ? "good" : quality.band === "medium" ? "warn" : "risk"} />
-          <QualityCard icon={ShieldCheck} label="Prediction Reliability" value={quality.reliable ? "Usable" : "Not ready"} detail={quality.reliable ? "Reliable enough for a decision draft." : "Use recommendations as guidance only."} tone={quality.reliable ? "good" : "risk"} />
+          <QualityCard icon={ShieldCheck} label="Data Reliability" value={quality.reliable ? "Usable" : "Not ready"} detail={quality.reliable ? "Reliable enough for a decision draft." : "Use recommendations as guidance only."} tone={quality.reliable ? "good" : "risk"} />
           <QualityCard icon={Database} label="Missing Fields" value={String(quality.missingFields.length)} detail={quality.nextBestAction} tone={quality.missingFields.length ? "warn" : "good"} />
           <QualityCard icon={Radar} label="Strategy Warnings" value={String(strategyWarnings.length)} detail={strategyWarnings[0] || "No strategy-specific warning."} tone={strategyWarnings.length ? "risk" : "good"} />
         </section>

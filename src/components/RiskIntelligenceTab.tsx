@@ -84,7 +84,7 @@ export default function RiskIntelligenceTab({ scenario, prediction, onUpdateScen
         <div className="grid gap-3 md:grid-cols-4">
           <RiskKpi label="Active Risks" value={String(activeRisks.length)} detail={`${passiveRisks.length} inactive`} icon={ShieldAlert} tone={activeRisks.length ? "risk" : "good"} />
           <RiskKpi label="Weighted Network Risk" value={prediction.confidenceScore >= 60 ? prediction.weightedRisk.toFixed(1) : "Pending"} detail="Requires complete network" icon={Radar} tone="cyan" />
-          <RiskKpi label="Risk Warnings" value={String(prediction.warnings.length)} detail="From prediction engine" icon={AlertTriangle} tone={prediction.warnings.length ? "risk" : "good"} />
+          <RiskKpi label="Risk Warnings" value={String(prediction.warnings.length)} detail="From decision model" icon={AlertTriangle} tone={prediction.warnings.length ? "risk" : "good"} />
           <RiskKpi label="Confidence" value={`${prediction.confidenceScore}%`} detail={`${prediction.missingDataFields.length} missing fields`} icon={Activity} tone={prediction.confidenceScore >= 60 ? "good" : "risk"} />
         </div>
 

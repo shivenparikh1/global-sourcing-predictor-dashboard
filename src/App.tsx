@@ -14,6 +14,7 @@ import {
   RouteLaneModal,
 } from "./components/ManualRecordModals";
 import ProductDetailsTab from "./components/ProductDetailsTab";
+import ProductHero from "./components/ProductHero";
 import RecommendationsTab from "./components/RecommendationsTab";
 import ReportsTab from "./components/ReportsTab";
 import RiskEventModal from "./components/RiskEventModal";
@@ -572,6 +573,13 @@ export default function App() {
   return (
     <div className="min-h-screen p-3 text-slate-100 sm:p-4">
       <div className="mx-auto flex max-w-[1900px] flex-col gap-3">
+        <ProductHero
+          onExploreDemo={() => {
+            switchDashboard(dashboardSlots.length - 1);
+            setActiveTab("command");
+          }}
+          onViewMethodology={() => setActiveTab("metrics")}
+        />
         <Header
           scenario={scenario}
           dashboardSlots={dashboardSlots}

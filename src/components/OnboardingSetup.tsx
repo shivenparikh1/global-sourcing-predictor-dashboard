@@ -17,7 +17,7 @@ const steps = [
   { label: "Add Routes and Transport Modes", icon: Route },
   { label: "Add Budget and Capacity Constraints", icon: Target },
   { label: "Add Risk Events", icon: ShieldAlert },
-  { label: "Generate Prediction", icon: Sparkles },
+  { label: "Generate Recommendation", icon: Sparkles },
 ];
 
 export default function OnboardingSetup({ scenario, onAddDemandHub, onAddSupplier, onAddRoute, onAddRisk, routeDisabledReason }: OnboardingSetupProps) {

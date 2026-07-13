@@ -1,10 +1,10 @@
 import { blankProductDetails, createBlankScenario, createExampleScenario } from "./seedData";
 import type { Scenario } from "./types";
 
-const CURRENT_KEY = "global-sourcing-predictor-current-v2";
-const SAVED_KEY = "global-sourcing-predictor-saved-v2";
-const DASHBOARD_SLOTS_KEY = "global-sourcing-predictor-dashboard-slots-v1";
-const ACTIVE_DASHBOARD_KEY = "global-sourcing-predictor-active-dashboard-v1";
+const CURRENT_KEY = "sourcing-command-current-v2";
+const SAVED_KEY = "sourcing-command-saved-v2";
+const DASHBOARD_SLOTS_KEY = "sourcing-command-dashboard-slots-v1";
+const ACTIVE_DASHBOARD_KEY = "sourcing-command-active-dashboard-v1";
 const DASHBOARD_SLOT_COUNT = 6;
 const EXAMPLE_DASHBOARD_INDEX = DASHBOARD_SLOT_COUNT - 1;
 

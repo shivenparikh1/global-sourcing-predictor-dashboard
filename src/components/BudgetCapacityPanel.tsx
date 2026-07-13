@@ -28,7 +28,7 @@ export default function BudgetCapacityPanel({ budget, onChange }: BudgetCapacity
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-white">Budget & Capacity Inputs</h3>
-          <p className="text-xs text-cyan-100/50">Constraints feeding prediction logic</p>
+          <p className="text-xs text-cyan-100/50">Constraints feeding decision logic</p>
         </div>
         <Target className="text-cyanline" size={18} />
       </div>
