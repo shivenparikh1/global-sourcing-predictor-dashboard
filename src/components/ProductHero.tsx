@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { ArrowRight, ClipboardList } from "lucide-react";
 import { appConfig } from "../appConfig";
 
@@ -12,8 +13,8 @@ export default function ProductHero({ onExploreDemo, onViewMethodology }: Produc
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
         <div className="max-w-5xl">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md border border-cyanline/25 bg-cyanline/10 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-cyan-100">{appConfig.categoryLabel}</span>
-            <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-amber-100">{appConfig.prototypeLabel}</span>
+            <span className="rounded-md border border-cyanline/25 bg-cyanline/10 px-2.5 py-1 text-[0.76rem] font-semibold text-cyan-100">{appConfig.categoryLabel}</span>
+            <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[0.76rem] font-semibold text-amber-100">{appConfig.prototypeLabel}</span>
           </div>
           <h2 className="mt-3 max-w-4xl text-2xl font-semibold leading-tight text-white sm:text-3xl">{appConfig.heroHeading}</h2>
           <p className="mt-3 max-w-5xl text-sm leading-6 text-cyan-50/72 sm:text-base">{appConfig.heroSubheading}</p>
@@ -32,12 +33,12 @@ export default function ProductHero({ onExploreDemo, onViewMethodology }: Produc
       </div>
 
       <div className="mt-4 border-t border-cyan-200/10 pt-3">
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.78rem] font-medium text-slate-300">
           {appConfig.credibilityStrip.map((item, index) => (
-            <span key={item} className="inline-flex items-center gap-3">
-              {index > 0 && <span className="text-cyanline/50">•</span>}
-              {item}
-            </span>
+            <Fragment key={item}>
+              {index > 0 && <span className="text-cyanline/55" aria-hidden="true">•</span>}
+              <span>{item}</span>
+            </Fragment>
           ))}
         </div>
       </div>
